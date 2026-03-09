@@ -6,6 +6,14 @@
   "permissions": [
     "core:default",
     "opener:default",
+    "dialog:default",
+    "dialog:allow-open",
+    "fs:default",
+    "fs:allow-read",
+    "fs:allow-write",
+    "core:event:default",
+    "core:event:allow-emit",
+    "core:event:allow-listen",
     "updater:default",
     "process:default"
   ]
