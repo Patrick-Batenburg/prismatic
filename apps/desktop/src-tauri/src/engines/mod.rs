@@ -1,3 +1,4 @@
+pub mod pixel_game_maker_mv;
 pub mod rpg_maker_mv;
 pub mod types;
 
