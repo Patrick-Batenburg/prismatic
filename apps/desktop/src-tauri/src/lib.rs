@@ -11,6 +11,7 @@ pub fn run() {
     let mut registry = EngineRegistry::new();
     registry.register(Box::new(engines::rpg_maker_mv::RpgMakerMvPlugin));
     registry.register(Box::new(engines::pixel_game_maker_mv::PgmmvPlugin));
+    registry.register(Box::new(engines::renpy::RenpyPlugin));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
