@@ -1,0 +1,73 @@
+{
+  "name": "Prismatic",
+  "dockerComposeFile": ["docker-compose.yml", "docker-compose.override.yml"],
+  "service": "devcontainer",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "installOhMyZsh": true,
+      "configureZshAsDefaultShell": true,
+      "username": "node"
+    },
+    "ghcr.io/devcontainers/features/rust:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers-extra/features/starship:1": {},
+    "ghcr.io/stuartleeks/dev-container-features/shell-history:0": {},
+
+    "ghcr.io/devcontainers-extra/features/zsh-plugins:0": {
+      "plugins": "zsh-autosuggestions zsh-syntax-highlighting zsh-completions git node npm rust docker fzf",
+      "omzPlugins": "https://github.com/zsh-users/zsh-autosuggestions.git https://github.com/zsh-users/zsh-syntax-highlighting.git https://github.com/zsh-users/zsh-completions.git",
+      "username": "node"
+    },
+    "ghcr.io/devcontainers-extra/features/claude-code:1": {},
+    "ghcr.io/devcontainers-extra/features/pnpm:2": {},
+    "ghcr.io/joshuanianji/devcontainer-features/mount-pnpm-store:1": {}
+  },
+  "workspaceFolder": "/workspace",
+  "remoteUser": "node",
+  "capAdd": ["NET_ADMIN", "NET_RAW"],
+  "containerEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "STARSHIP_CONFIG": "/home/node/.config/starship.toml",
+    "EDITOR": "nano",
+    "VISUAL": "nano"
+  },
+  "postCreateCommand": "sed -i 's/^ZSH_THEME=.*/ZSH_THEME=\"\"/' ~/.zshrc && echo 'LISTMAX=0' >> ~/.zshrc && echo 'eval \"$(starship init zsh)\"' >> ~/.zshrc",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "christian-kohler.npm-intellisense",
+        "dbaeumer.vscode-eslint",
+        "eamodio.gitlens",
+        "editorconfig.editorconfig",
+        "esbenp.prettier-vscode",
+        "gruntfuggly.todo-tree",
+        "ms-vscode.hexeditor",
+        "pkief.material-icon-theme",
+        "redhat.vscode-yaml",
+        "rust-lang.rust-analyzer",
+        "svelte.svelte-vscode",
+        "tamasfe.even-better-toml",
+        "tauri-apps.tauri-vscode"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "bash",
+            "icon": "terminal-bash"
+          },
+          "zsh": {
+            "path": "zsh"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+# Copy to docker-compose.override.yml and adjust paths if needed.
+services:
+  devcontainer:
+    volumes:
+      - ${USERPROFILE}/.claude:/home/node/.claude:cached
+      - ${USERPROFILE}/.config:/home/node/.config:cached

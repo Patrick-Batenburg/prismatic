@@ -1,0 +1,23 @@
+{
+  "name": "prismatic",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.31.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo format:check lint check",
+    "lint:fix": "turbo format lint check",
+    "test": "turbo test",
+    "tauri:dev": "pnpm --filter desktop tauri dev",
+    "tauri:build": "pnpm --filter desktop tauri build"
+  },
+  "devDependencies": {
+    "turbo": "^2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
