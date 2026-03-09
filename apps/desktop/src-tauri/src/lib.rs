@@ -8,8 +8,8 @@ use std::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let registry = EngineRegistry::new();
-    // Engine plugins will be registered here as they're implemented
+    let mut registry = EngineRegistry::new();
+    registry.register(Box::new(engines::rpg_maker_mv::RpgMakerMvPlugin));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

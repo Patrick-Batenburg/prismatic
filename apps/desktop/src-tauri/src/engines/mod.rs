@@ -1,3 +1,4 @@
+pub mod rpg_maker_mv;
 pub mod types;
 
 use std::path::Path;
