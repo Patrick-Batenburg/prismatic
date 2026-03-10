@@ -879,6 +879,7 @@ impl EnginePlugin for RpgMakerVxaPlugin {
             save_extensions: vec!["rvdata2".into()],
             description: "RPG Maker VX Ace game saves".into(),
             save_dir_hint: None,
+            pick_mode: "folder".into(),
         }
     }
 

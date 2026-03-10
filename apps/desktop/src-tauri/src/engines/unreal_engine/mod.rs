@@ -20,6 +20,7 @@ impl EnginePlugin for UnrealPlugin {
                 "Select the folder containing your .sav save files. Usually somewhere in AppData."
                     .to_string(),
             ),
+            pick_mode: "folder".to_string(),
         }
     }
 

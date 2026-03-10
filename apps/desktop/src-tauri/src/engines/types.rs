@@ -145,4 +145,11 @@ pub struct EngineInfo {
     /// If set, the frontend should prompt the user to select a separate save directory
     /// after detection, using this string as a hint message.
     pub save_dir_hint: Option<String>,
+    /// Pick mode: "folder" (default) opens folder picker, "file" opens file dialog.
+    #[serde(default = "default_pick_mode")]
+    pub pick_mode: String,
+}
+
+fn default_pick_mode() -> String {
+    "folder".to_string()
 }

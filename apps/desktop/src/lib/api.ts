@@ -8,6 +8,7 @@ export interface EngineInfo {
   save_extensions: string[];
   description: string;
   save_dir_hint: string | null;
+  pick_mode: string;
 }
 
 export interface SaveFile {

@@ -21,6 +21,7 @@ impl EnginePlugin for FlashSolPlugin {
                  C:\\Users\\<you>\\AppData\\Roaming\\Macromedia\\Flash Player\\#SharedObjects"
                     .to_string(),
             ),
+            pick_mode: "folder".to_string(),
         }
     }
 

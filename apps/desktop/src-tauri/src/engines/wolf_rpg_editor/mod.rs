@@ -20,6 +20,7 @@ impl EnginePlugin for WolfRpgEditorPlugin {
             save_extensions: vec!["sav".into()],
             description: "Wolf RPG Editor game saves".into(),
             save_dir_hint: None,
+            pick_mode: "folder".into(),
         }
     }
 

@@ -211,6 +211,7 @@ impl EnginePlugin for RenpyPlugin {
             save_extensions: vec!["save".into()],
             description: "Ren'Py visual novel engine saves".into(),
             save_dir_hint: None,
+            pick_mode: "folder".into(),
         }
     }
 

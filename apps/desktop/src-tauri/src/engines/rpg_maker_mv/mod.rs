@@ -476,6 +476,7 @@ impl EnginePlugin for RpgMakerMvPlugin {
             save_extensions: vec!["rpgsave".into(), "rmmzsave".into()],
             description: "RPG Maker MV and MZ game saves".into(),
             save_dir_hint: None,
+            pick_mode: "folder".into(),
         }
     }
 

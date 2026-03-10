@@ -140,6 +140,22 @@
       }
 
       const { open } = await import('@tauri-apps/plugin-dialog');
+
+      if (engine.pick_mode === 'file') {
+        const selected = await open({
+          title: `Select ${engine.name} save file`,
+          filters: engine.save_extensions.length
+            ? [{ name: 'Save files', extensions: engine.save_extensions }]
+            : [],
+        });
+        if (!selected) return;
+        const filePath = (selected as { path: string }).path ?? (selected as string);
+        const lastSep = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+        const gameDir = lastSep > 0 ? filePath.substring(0, lastSep) : filePath;
+        await finishSetup(engine, gameDir);
+        return;
+      }
+
       const selected = await open({ directory: true, title: `Select ${engine.name} game folder` });
       if (!selected) return;
 

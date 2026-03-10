@@ -16,6 +16,7 @@ impl EnginePlugin for SugarCubePlugin {
             save_dir_hint: Some(
                 "Select the folder containing your exported .save files.".to_string(),
             ),
+            pick_mode: "folder".to_string(),
         }
     }
 
