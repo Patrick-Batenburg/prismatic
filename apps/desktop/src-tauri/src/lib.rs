@@ -5,6 +5,7 @@ mod watcher;
 
 use commands::AppState;
 use engines::EngineRegistry;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use watcher::FileWatcher;
 
@@ -14,6 +15,10 @@ pub fn run() {
     registry.register(Box::new(engines::rpg_maker_mv::RpgMakerMvPlugin));
     registry.register(Box::new(engines::pixel_game_maker_mv::PgmmvPlugin));
     registry.register(Box::new(engines::renpy::RenpyPlugin));
+    registry.register(Box::new(engines::rpg_maker_vx_ace::RpgMakerVxaPlugin));
+    registry.register(Box::new(engines::wolf_rpg_editor::WolfRpgPlugin));
+    registry.register(Box::new(engines::flash::FlashSolPlugin));
+    registry.register(Box::new(engines::unreal_engine::UnrealPlugin));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -26,6 +31,7 @@ pub fn run() {
             current_engine: Mutex::new(None),
             current_game_dir: Mutex::new(None),
             last_loaded_save: Mutex::new(None),
+            scan_cache: Mutex::new(HashMap::new()),
         })
         .manage(Arc::new(Mutex::new(FileWatcher::new())) as watcher::SharedWatcher)
         .invoke_handler(tauri::generate_handler![
@@ -39,6 +45,8 @@ pub fn run() {
             commands::get_diff,
             commands::list_backups,
             commands::restore_backup,
+            commands::browse_save_dir,
+            commands::deep_scan_dir,
             commands::apply_debug_patch,
             commands::revert_debug_patch,
             watcher::watch_save,

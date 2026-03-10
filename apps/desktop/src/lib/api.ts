@@ -7,6 +7,7 @@ export interface EngineInfo {
   supports_debug: boolean;
   save_extensions: string[];
   description: string;
+  save_dir_hint: string | null;
 }
 
 export interface SaveFile {
@@ -49,6 +50,7 @@ export interface EquipSlot {
   slot_name: string;
   item_id: number | null;
   item_name: string | null;
+  data_class: string;
 }
 
 export interface Inventory {
@@ -126,6 +128,20 @@ export interface PatchInfo {
   applied_at: string;
 }
 
+export interface SaveDirEntry {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  file_count: number;
+}
+
+export interface ScanProgressEvent {
+  path: string;
+  file_count: number;
+  folders_done: number;
+  folders_total: number;
+}
+
 export const api = {
   listEngines: () => invoke<EngineInfo[]>('list_engines'),
   detectEngine: (gameDir: string) => invoke<EngineInfo | null>('detect_engine', { gameDir }),
@@ -137,6 +153,9 @@ export const api = {
   getDiff: (savePath: string) => invoke<DiffEntry[]>('get_diff', { savePath }),
   listBackups: (savePath: string) => invoke<BackupEntry[]>('list_backups', { savePath }),
   restoreBackup: (backupPath: string, savePath: string) => invoke<void>('restore_backup', { backupPath, savePath }),
+  browseSaveDir: (dir: string | null, defaultDir: string | null, extension: string) => invoke<[string, SaveDirEntry[]]>('browse_save_dir', { dir, defaultDir, extension }),
+  deepScanDir: (dir: string, extension: string) =>
+    invoke<void>('deep_scan_dir', { dir, extension }),
   applyDebugPatch: () => invoke<PatchInfo>('apply_debug_patch'),
   revertDebugPatch: (patch: PatchInfo) => invoke<void>('revert_debug_patch', { patch }),
 };
