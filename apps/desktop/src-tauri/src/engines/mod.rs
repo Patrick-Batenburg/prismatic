@@ -1,9 +1,15 @@
+pub mod flash;
 pub mod pixel_game_maker_mv;
 pub mod renpy;
 pub mod rpg_maker_mv;
+pub mod rpg_maker_vx_ace;
+pub mod sugarcube;
 pub mod types;
+pub mod unreal_engine;
+pub mod wolf_rpg_editor;
 
 use std::path::Path;
+use std::sync::Arc;
 use types::*;
 
 pub trait EnginePlugin: Send + Sync {
@@ -14,6 +20,7 @@ pub trait EnginePlugin: Send + Sync {
     fn write_save(&self, save_path: &Path, data: &SaveData) -> Result<(), String>;
     fn resolve_names(&self, game_dir: &Path) -> Result<NameMap, String>;
 
+    #[allow(dead_code)]
     fn supports_debug_patch(&self) -> bool {
         false
     }
@@ -26,7 +33,7 @@ pub trait EnginePlugin: Send + Sync {
 }
 
 pub struct EngineRegistry {
-    engines: Vec<Box<dyn EnginePlugin>>,
+    engines: Vec<Arc<dyn EnginePlugin>>,
 }
 
 impl EngineRegistry {
@@ -37,24 +44,24 @@ impl EngineRegistry {
     }
 
     pub fn register(&mut self, engine: Box<dyn EnginePlugin>) {
-        self.engines.push(engine);
+        self.engines.push(Arc::from(engine));
     }
 
     pub fn list_engines(&self) -> Vec<EngineInfo> {
         self.engines.iter().map(|e| e.info()).collect()
     }
 
-    pub fn detect_engine(&self, game_dir: &Path) -> Option<&dyn EnginePlugin> {
+    pub fn detect_engine(&self, game_dir: &Path) -> Option<Arc<dyn EnginePlugin>> {
         self.engines
             .iter()
             .find(|e| e.detect(game_dir))
-            .map(|e| e.as_ref())
+            .cloned()
     }
 
-    pub fn get_engine(&self, id: &str) -> Option<&dyn EnginePlugin> {
+    pub fn get_engine(&self, id: &str) -> Option<Arc<dyn EnginePlugin>> {
         self.engines
             .iter()
             .find(|e| e.info().id == id)
-            .map(|e| e.as_ref())
+            .cloned()
     }
 }

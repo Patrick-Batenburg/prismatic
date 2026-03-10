@@ -16,9 +16,10 @@ pub fn run() {
     registry.register(Box::new(engines::pixel_game_maker_mv::PgmmvPlugin));
     registry.register(Box::new(engines::renpy::RenpyPlugin));
     registry.register(Box::new(engines::rpg_maker_vx_ace::RpgMakerVxaPlugin));
-    registry.register(Box::new(engines::wolf_rpg_editor::WolfRpgPlugin));
+    registry.register(Box::new(engines::wolf_rpg_editor::WolfRpgEditorPlugin));
     registry.register(Box::new(engines::flash::FlashSolPlugin));
     registry.register(Box::new(engines::unreal_engine::UnrealPlugin));
+    registry.register(Box::new(engines::sugarcube::SugarCubePlugin));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

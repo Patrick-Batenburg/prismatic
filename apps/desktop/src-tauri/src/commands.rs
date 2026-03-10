@@ -214,6 +214,9 @@ fn expand_env(path: &str) -> String {
     if let Ok(localappdata) = std::env::var("LOCALAPPDATA") {
         result = result.replace("%LOCALAPPDATA%", &localappdata);
     }
+    if let Ok(userprofile) = std::env::var("USERPROFILE") {
+        result = result.replace("%USERPROFILE%", &userprofile);
+    }
     result
 }
 
