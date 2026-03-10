@@ -143,6 +143,29 @@ export interface ScanProgressEvent {
   folders_total: number;
 }
 
+export interface TableMeta {
+  name: string;
+  columns: { name: string; col_type: string }[];
+  row_count: number;
+}
+
+export interface TableRow {
+  values: any[];
+}
+
+export interface TableQueryResult {
+  columns: string[];
+  rows: TableRow[];
+  total_rows: number;
+}
+
+export interface CellChange {
+  table: string;
+  rowid: number;
+  column: string;
+  value: any;
+}
+
 export const api = {
   listEngines: () => invoke<EngineInfo[]>('list_engines'),
   detectEngine: (gameDir: string) => invoke<EngineInfo | null>('detect_engine', { gameDir }),
@@ -159,4 +182,12 @@ export const api = {
     invoke<void>('deep_scan_dir', { dir, extension }),
   applyDebugPatch: () => invoke<PatchInfo>('apply_debug_patch'),
   revertDebugPatch: (patch: PatchInfo) => invoke<void>('revert_debug_patch', { patch }),
+  queryTable: (tableName: string, offset: number, limit: number) =>
+    invoke<TableQueryResult>('query_table', { tableName, offset, limit }),
+  updateRows: (changes: CellChange[]) =>
+    invoke<number>('update_rows', { changes }),
+  insertRow: (tableName: string) =>
+    invoke<number>('insert_row', { tableName }),
+  deleteRows: (tableName: string, rowids: number[]) =>
+    invoke<number>('delete_rows', { tableName, rowids }),
 };

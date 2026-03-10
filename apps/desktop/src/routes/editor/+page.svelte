@@ -11,6 +11,7 @@
   import SwitchesTab from '$lib/components/tabs/SwitchesTab.svelte';
   // Currency is now part of PartyTab
   import RawTab from '$lib/components/tabs/RawTab.svelte';
+  import TableBrowser from '$lib/components/tabs/TableBrowser.svelte';
   import DiffView from '$lib/components/DiffView.svelte';
   import SaveFolderPicker from '$lib/components/SaveFolderPicker.svelte';
 
@@ -247,41 +248,45 @@
         <span class="loading-text">Loading save...</span>
       </div>
     {:else if save}
-      <!-- Toolbar -->
-      <div class="toolbar">
-        <div class="tab-bar">
-          {#each tabs as tab}
-            <button
-              class="tab"
-              class:active={activeTab === tab.id}
-              onclick={() => activeTab = tab.id}
-            >
-              {tab.label}
-            </button>
-          {/each}
+      {#if engine?.id === 'sqlite'}
+        <TableBrowser tables={save.raw} />
+      {:else}
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <div class="tab-bar">
+            {#each tabs as tab}
+              <button
+                class="tab"
+                class:active={activeTab === tab.id}
+                onclick={() => activeTab = tab.id}
+              >
+                {tab.label}
+              </button>
+            {/each}
+          </div>
+
+          <div class="toolbar-actions">
+            <button onclick={handleReload} title="Reload & diff">↻ Reload</button>
+            <button onclick={showBackupList} title="Backups">📦 Backups</button>
+            <button class="btn-primary" onclick={handleSave}>💾 Save</button>
+          </div>
         </div>
 
-        <div class="toolbar-actions">
-          <button onclick={handleReload} title="Reload & diff">↻ Reload</button>
-          <button onclick={showBackupList} title="Backups">📦 Backups</button>
-          <button class="btn-primary" onclick={handleSave}>💾 Save</button>
+        <!-- Tab content -->
+        <div class="tab-content">
+          {#if activeTab === 'party' && (save.party || save.currency)}
+            <PartyTab party={save.party ?? []} currency={save.currency} nameMap={names} />
+          {:else if activeTab === 'inventory' && save.inventory}
+            <InventoryTab inventory={save.inventory} />
+          {:else if activeTab === 'variables' && save.variables}
+            <VariablesTab variables={save.variables} />
+          {:else if activeTab === 'switches' && save.switches}
+            <SwitchesTab switches={save.switches} />
+          {:else if activeTab === 'raw'}
+            <RawTab data={save.raw} engineId={engine?.id || ''} />
+          {/if}
         </div>
-      </div>
-
-      <!-- Tab content -->
-      <div class="tab-content">
-        {#if activeTab === 'party' && (save.party || save.currency)}
-          <PartyTab party={save.party ?? []} currency={save.currency} nameMap={names} />
-        {:else if activeTab === 'inventory' && save.inventory}
-          <InventoryTab inventory={save.inventory} />
-        {:else if activeTab === 'variables' && save.variables}
-          <VariablesTab variables={save.variables} />
-        {:else if activeTab === 'switches' && save.switches}
-          <SwitchesTab switches={save.switches} />
-        {:else if activeTab === 'raw'}
-          <RawTab data={save.raw} engineId={engine?.id || ''} />
-        {/if}
-      </div>
+      {/if}
     {:else}
       <div class="empty-state">
         <div class="empty-icon">📂</div>

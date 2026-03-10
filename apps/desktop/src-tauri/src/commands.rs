@@ -404,3 +404,231 @@ pub fn revert_debug_patch(state: State<AppState>, patch: PatchInfo) -> Result<()
     let (engine, game_dir) = state.engine_and_dir()?;
     engine.revert_debug_patch(Path::new(&game_dir), &patch)
 }
+
+// ── SQLite table query/update commands ──────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TableRow {
+    pub values: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TableQueryResult {
+    pub columns: Vec<String>,
+    pub rows: Vec<TableRow>,
+    pub total_rows: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CellChange {
+    pub table: String,
+    pub rowid: i64,
+    pub column: String,
+    pub value: serde_json::Value,
+}
+
+fn sqlite_value_to_json(row: &rusqlite::Row, idx: usize) -> serde_json::Value {
+    if let Ok(v) = row.get::<_, i64>(idx) {
+        serde_json::Value::Number(v.into())
+    } else if let Ok(v) = row.get::<_, f64>(idx) {
+        serde_json::json!(v)
+    } else if let Ok(v) = row.get::<_, String>(idx) {
+        serde_json::Value::String(v)
+    } else if let Ok(v) = row.get::<_, Vec<u8>>(idx) {
+        serde_json::Value::String(format!("[blob: {} bytes]", v.len()))
+    } else {
+        serde_json::Value::Null
+    }
+}
+
+#[tauri::command]
+pub async fn query_table(
+    state: State<'_, AppState>,
+    table_name: String,
+    offset: usize,
+    limit: usize,
+) -> Result<TableQueryResult, String> {
+    let save_path = {
+        let guard = state.last_loaded_save.lock().unwrap();
+        let (path, _) = guard.as_ref().ok_or("No save file loaded")?;
+        path.clone()
+    };
+
+    let conn = rusqlite::Connection::open(&save_path)
+        .map_err(|e| format!("Failed to open SQLite database: {e}"))?;
+
+    // Get column names via PRAGMA
+    let mut col_stmt = conn
+        .prepare(&format!("PRAGMA table_info(\"{}\")", table_name))
+        .map_err(|e| format!("Failed to query table info: {e}"))?;
+    let columns: Vec<String> = col_stmt
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| format!("Failed to read column info: {e}"))?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    if columns.is_empty() {
+        return Err(format!("Table '{}' not found or has no columns", table_name));
+    }
+
+    // Count total rows
+    let total_rows: usize = conn
+        .query_row(
+            &format!("SELECT COUNT(*) FROM \"{}\"", table_name),
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to count rows: {e}"))?;
+
+    // Query with LIMIT/OFFSET
+    let sql = format!(
+        "SELECT rowid, * FROM \"{}\" LIMIT {} OFFSET {}",
+        table_name, limit, offset
+    );
+    let mut stmt = conn
+        .prepare(&sql)
+        .map_err(|e| format!("Failed to prepare query: {e}"))?;
+
+    let col_count = columns.len();
+    let rows: Vec<TableRow> = stmt
+        .query_map([], |row| {
+            let mut values = Vec::with_capacity(col_count + 1);
+            // First column is rowid
+            values.push(sqlite_value_to_json(row, 0));
+            for i in 1..=col_count {
+                values.push(sqlite_value_to_json(row, i));
+            }
+            Ok(TableRow { values })
+        })
+        .map_err(|e| format!("Failed to query rows: {e}"))?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    // Prepend "rowid" to columns
+    let mut all_columns = vec!["rowid".to_string()];
+    all_columns.extend(columns);
+
+    Ok(TableQueryResult {
+        columns: all_columns,
+        rows,
+        total_rows,
+    })
+}
+
+#[tauri::command]
+pub async fn update_rows(
+    state: State<'_, AppState>,
+    changes: Vec<CellChange>,
+) -> Result<usize, String> {
+    let save_path = {
+        let guard = state.last_loaded_save.lock().unwrap();
+        let (path, _) = guard.as_ref().ok_or("No save file loaded")?;
+        path.clone()
+    };
+
+    // Create backup before modifying
+    BackupManager::create_backup(Path::new(&save_path))?;
+
+    let mut conn = rusqlite::Connection::open(&save_path)
+        .map_err(|e| format!("Failed to open SQLite database: {e}"))?;
+
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|e| format!("Failed to start transaction: {e}"))?;
+
+    let mut affected = 0usize;
+
+    for change in &changes {
+        let sql = format!(
+            "UPDATE \"{}\" SET \"{}\" = ?1 WHERE rowid = ?2",
+            change.table, change.column
+        );
+        let rows = match &change.value {
+            serde_json::Value::Null => tx
+                .execute(&sql, rusqlite::params![rusqlite::types::Null, change.rowid]),
+            serde_json::Value::Bool(b) => tx
+                .execute(&sql, rusqlite::params![*b as i64, change.rowid]),
+            serde_json::Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    tx.execute(&sql, rusqlite::params![i, change.rowid])
+                } else if let Some(f) = n.as_f64() {
+                    tx.execute(&sql, rusqlite::params![f, change.rowid])
+                } else {
+                    tx.execute(&sql, rusqlite::params![n.to_string(), change.rowid])
+                }
+            }
+            serde_json::Value::String(s) => tx
+                .execute(&sql, rusqlite::params![s, change.rowid]),
+            other => tx
+                .execute(&sql, rusqlite::params![other.to_string(), change.rowid]),
+        }
+        .map_err(|e| format!("Failed to update {}.{}: {e}", change.table, change.column))?;
+        affected += rows;
+    }
+
+    tx.commit()
+        .map_err(|e| format!("Failed to commit transaction: {e}"))?;
+
+    Ok(affected)
+}
+
+#[tauri::command]
+pub async fn insert_row(
+    state: State<'_, AppState>,
+    table_name: String,
+) -> Result<i64, String> {
+    let save_path = {
+        let guard = state.last_loaded_save.lock().unwrap();
+        let (path, _) = guard.as_ref().ok_or("No save file loaded")?;
+        path.clone()
+    };
+
+    let conn = rusqlite::Connection::open(&save_path)
+        .map_err(|e| format!("Failed to open SQLite database: {e}"))?;
+
+    conn.execute(
+        &format!("INSERT INTO \"{}\" DEFAULT VALUES", table_name),
+        [],
+    )
+    .map_err(|e| format!("Failed to insert row: {e}"))?;
+
+    Ok(conn.last_insert_rowid())
+}
+
+#[tauri::command]
+pub async fn delete_rows(
+    state: State<'_, AppState>,
+    table_name: String,
+    rowids: Vec<i64>,
+) -> Result<usize, String> {
+    let save_path = {
+        let guard = state.last_loaded_save.lock().unwrap();
+        let (path, _) = guard.as_ref().ok_or("No save file loaded")?;
+        path.clone()
+    };
+
+    BackupManager::create_backup(Path::new(&save_path))?;
+
+    let mut conn = rusqlite::Connection::open(&save_path)
+        .map_err(|e| format!("Failed to open SQLite database: {e}"))?;
+
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|e| format!("Failed to start transaction: {e}"))?;
+
+    let mut deleted = 0usize;
+    for rowid in &rowids {
+        let count = tx
+            .execute(
+                &format!("DELETE FROM \"{}\" WHERE rowid = ?1", table_name),
+                rusqlite::params![rowid],
+            )
+            .map_err(|e| format!("Failed to delete row {rowid}: {e}"))?;
+        deleted += count;
+    }
+
+    tx.commit()
+        .map_err(|e| format!("Failed to commit transaction: {e}"))?;
+
+    Ok(deleted)
+}

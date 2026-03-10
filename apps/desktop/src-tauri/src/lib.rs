@@ -20,6 +20,7 @@ pub fn run() {
     registry.register(Box::new(engines::flash::FlashSolPlugin));
     registry.register(Box::new(engines::unreal_engine::UnrealPlugin));
     registry.register(Box::new(engines::sugarcube::SugarCubePlugin));
+    registry.register(Box::new(engines::sqlite::SqlitePlugin));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -50,6 +51,10 @@ pub fn run() {
             commands::deep_scan_dir,
             commands::apply_debug_patch,
             commands::revert_debug_patch,
+            commands::query_table,
+            commands::update_rows,
+            commands::insert_row,
+            commands::delete_rows,
             watcher::watch_save,
             watcher::unwatch_save,
         ])

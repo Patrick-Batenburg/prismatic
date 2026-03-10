@@ -6,6 +6,7 @@ pub mod rpg_maker_vx_ace;
 pub mod sugarcube;
 pub mod types;
 pub mod unreal_engine;
+pub mod sqlite;
 pub mod wolf_rpg_editor;
 
 use std::path::Path;

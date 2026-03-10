@@ -37,5 +37,6 @@ sha2 = "0.10"
 hex = "0.4"
 marshal-rs = "2.0.0"
 uesave = "0.7"
+rusqlite = { version = "0.31", features = ["bundled"] }
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"

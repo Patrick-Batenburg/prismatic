@@ -17,6 +17,7 @@
     'flash': 'flash',
     'unreal-engine': 'unreal-engine',
     'sugarcube': 'sugarcube',
+    'sqlite': 'sqlite',
   };
 
   const engineEmojis: Record<string, string> = {
@@ -28,6 +29,7 @@
     'flash': '⚡',
     'unreal-engine': '🔷',
     'sugarcube': '🍬',
+    'sqlite': '🗄️',
   };
 
   let logoFailed = $state<Record<string, boolean>>({});
@@ -41,6 +43,7 @@
     'flash': '#f44336',
     'unreal-engine': '#1565c0',
     'sugarcube': '#8b5cf6',
+    'sqlite': '#003b57',
   };
 
   function getPickerConfig(engine: EngineInfo) {
