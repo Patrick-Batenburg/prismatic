@@ -3,11 +3,25 @@ pub mod names;
 use crate::engines::types::*;
 use crate::engines::EnginePlugin;
 use chrono::Local;
-use names::find_data_dir;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 pub struct RpgMakerMvPlugin;
+
+/// Unwrap RPG Maker MV's serialized array format.
+/// Arrays may be plain JSON arrays OR wrapped as `{"@c": N, "@a": [...]}`.
+fn unwrap_array(val: &serde_json::Value) -> Option<&Vec<serde_json::Value>> {
+    val.as_array().or_else(|| val.get("@a").and_then(|a| a.as_array()))
+}
+
+/// Mutable version of unwrap_array.
+fn unwrap_array_mut(val: &mut serde_json::Value) -> Option<&mut Vec<serde_json::Value>> {
+    if val.is_array() {
+        val.as_array_mut()
+    } else {
+        val.get_mut("@a").and_then(|a| a.as_array_mut())
+    }
+}
 
 impl RpgMakerMvPlugin {
     /// Find the save directory (www/save/ for MV, save/ for MZ)
@@ -62,7 +76,7 @@ impl RpgMakerMvPlugin {
     }
 
     fn extract_party(raw: &serde_json::Value, names: &NameMap) -> Option<Vec<Character>> {
-        let actors = raw.get("actors")?.get("_data")?.as_array()?;
+        let actors = unwrap_array(raw.get("actors")?.get("_data")?)?;
         let mut characters = Vec::new();
 
         for actor_val in actors.iter() {
@@ -70,7 +84,10 @@ impl RpgMakerMvPlugin {
                 continue;
             }
 
-            let id = actor_val.get("_actorId")?.as_u64()? as u32;
+            let id = match actor_val.get("_actorId").and_then(|v| v.as_u64()) {
+                Some(id) => id as u32,
+                None => continue,
+            };
             let name = actor_val
                 .get("_name")
                 .and_then(|v| v.as_str())
@@ -87,8 +104,10 @@ impl RpgMakerMvPlugin {
                 .get("_exp")
                 .and_then(|v| v.as_object())
                 .and_then(|obj| {
-                    // _exp is an object keyed by class ID
-                    obj.values().next().and_then(|v| v.as_u64())
+                    // _exp is an object keyed by class ID, skip @c metadata
+                    obj.iter()
+                        .find(|(k, _)| !k.starts_with('@'))
+                        .and_then(|(_, v)| v.as_u64())
                 })
                 .unwrap_or(0);
 
@@ -97,7 +116,7 @@ impl RpgMakerMvPlugin {
             let tp = actor_val.get("_tp").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
             // Parameter base values
-            let param_base = actor_val.get("_paramPlus").and_then(|v| v.as_array());
+            let param_base = actor_val.get("_paramPlus").and_then(|v| unwrap_array(v));
             let param_labels = ["Max HP", "Max MP", "ATK", "DEF", "MAT", "MDF", "AGI", "LUK"];
             let param_keys = ["mhp", "mmp", "atk", "def", "mat", "mdf", "agi", "luk"];
 
@@ -123,7 +142,7 @@ impl RpgMakerMvPlugin {
             // Equipment
             let mut equipment = Vec::new();
             let slot_names = ["Weapon", "Shield", "Head", "Body", "Accessory"];
-            if let Some(equips) = actor_val.get("_equips").and_then(|v| v.as_array()) {
+            if let Some(equips) = actor_val.get("_equips").and_then(|v| unwrap_array(v)) {
                 for (i, equip) in equips.iter().enumerate() {
                     let slot_name = slot_names.get(i).unwrap_or(&"Slot").to_string();
                     let item_id = equip.get("_itemId").and_then(|v| v.as_u64()).map(|v| v as u32);
@@ -141,10 +160,18 @@ impl RpgMakerMvPlugin {
                         .cloned()
                     });
 
+                    // Default data_class based on slot if empty
+                    let data_class_str = if data_class.is_empty() {
+                        if i == 0 { "weapon" } else { "armor" }
+                    } else {
+                        data_class
+                    };
+
                     equipment.push(EquipSlot {
                         slot_name,
                         item_id: item_id.filter(|&id| id != 0),
                         item_name,
+                        data_class: data_class_str.to_string(),
                     });
                 }
             }
@@ -152,7 +179,7 @@ impl RpgMakerMvPlugin {
             // Skills
             let skills = actor_val
                 .get("_skills")
-                .and_then(|v| v.as_array())
+                .and_then(|v| unwrap_array(v))
                 .map(|arr| {
                     arr.iter()
                         .filter_map(|v| v.as_u64())
@@ -246,7 +273,7 @@ impl RpgMakerMvPlugin {
     }
 
     fn extract_variables(raw: &serde_json::Value, names: &NameMap) -> Option<Vec<Variable>> {
-        let data = raw.get("variables")?.get("_data")?.as_array()?;
+        let data = unwrap_array(raw.get("variables")?.get("_data")?)?;
         let mut vars = Vec::new();
 
         for (i, val) in data.iter().enumerate() {
@@ -275,7 +302,7 @@ impl RpgMakerMvPlugin {
     }
 
     fn extract_switches(raw: &serde_json::Value, names: &NameMap) -> Option<Vec<Switch>> {
-        let data = raw.get("switches")?.get("_data")?.as_array()?;
+        let data = unwrap_array(raw.get("switches")?.get("_data")?)?;
         let mut switches = Vec::new();
 
         for (i, val) in data.iter().enumerate() {
@@ -315,7 +342,7 @@ impl RpgMakerMvPlugin {
             if let Some(var_data) = raw
                 .get_mut("variables")
                 .and_then(|v| v.get_mut("_data"))
-                .and_then(|v| v.as_array_mut())
+                .and_then(|v| unwrap_array_mut(v))
             {
                 for var in variables {
                     if (var.id as usize) < var_data.len() {
@@ -330,7 +357,7 @@ impl RpgMakerMvPlugin {
             if let Some(sw_data) = raw
                 .get_mut("switches")
                 .and_then(|v| v.get_mut("_data"))
-                .and_then(|v| v.as_array_mut())
+                .and_then(|v| unwrap_array_mut(v))
             {
                 for sw in switches {
                     if (sw.id as usize) < sw_data.len() {
@@ -363,7 +390,7 @@ impl RpgMakerMvPlugin {
             if let Some(actors_data) = raw
                 .get_mut("actors")
                 .and_then(|v| v.get_mut("_data"))
-                .and_then(|v| v.as_array_mut())
+                .and_then(|v| unwrap_array_mut(v))
             {
                 for character in characters {
                     // Find the matching actor in the raw data
@@ -404,7 +431,7 @@ impl RpgMakerMvPlugin {
                                     if let Some(idx) = idx {
                                         if let Some(params) = actor_val
                                             .get_mut("_paramPlus")
-                                            .and_then(|v| v.as_array_mut())
+                                            .and_then(|v| unwrap_array_mut(v))
                                         {
                                             if idx < params.len() {
                                                 params[idx] = serde_json::json!(stat.current);
@@ -418,12 +445,15 @@ impl RpgMakerMvPlugin {
                         // Apply equipment
                         if let Some(equips) = actor_val
                             .get_mut("_equips")
-                            .and_then(|v| v.as_array_mut())
+                            .and_then(|v| unwrap_array_mut(v))
                         {
                             for (i, eq) in character.equipment.iter().enumerate() {
                                 if i < equips.len() {
                                     equips[i]["_itemId"] =
                                         serde_json::json!(eq.item_id.unwrap_or(0));
+                                    equips[i]["_dataClass"] = serde_json::json!(
+                                        if eq.item_id.unwrap_or(0) == 0 { "" } else { &eq.data_class }
+                                    );
                                 }
                             }
                         }
@@ -441,10 +471,11 @@ impl EnginePlugin for RpgMakerMvPlugin {
         EngineInfo {
             id: "rpg-maker-mv".into(),
             name: "RPG Maker MV/MZ".into(),
-            icon: "rpgmaker".into(),
+            icon: "rpg-maker-mv".into(),
             supports_debug: true,
             save_extensions: vec!["rpgsave".into(), "rmmzsave".into()],
             description: "RPG Maker MV and MZ game saves".into(),
+            save_dir_hint: None,
         }
     }
 

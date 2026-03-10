@@ -6,11 +6,11 @@
 </script>
 
 <div class="currency-card">
-  <label class="currency-label">
+  <label class="currency-label" for="currency-amount">
     <span class="currency-icon">💰</span>
     <span class="currency-name">{currency.label}</span>
   </label>
-  <input type="number" class="currency-input" bind:value={currency.amount}
+  <input id="currency-amount" type="number" class="currency-input" bind:value={currency.amount}
     oninput={() => markModified('currency.amount')} />
 </div>
 

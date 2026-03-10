@@ -1,5 +1,4 @@
 use crate::engines::types::NameMap;
-use std::path::Path;
 
 /// Resolve names from a decrypted project.json
 pub fn resolve_names_from_project(project: &serde_json::Value) -> NameMap {

@@ -134,6 +134,7 @@ impl EnginePlugin for PgmmvPlugin {
             supports_debug: false,
             save_extensions: vec!["json".into()],
             description: "Pixel Game Maker MV encrypted saves".into(),
+            save_dir_hint: None,
         }
     }
 
@@ -188,7 +189,13 @@ impl EnginePlugin for PgmmvPlugin {
         let raw: serde_json::Value = serde_json::from_str(&json_str)
             .map_err(|e| format!("Failed to parse save JSON: {e}"))?;
 
-        let name_map = self.resolve_names(game_dir).unwrap_or_default();
+        // Skip inline name resolution if project.json is very large (>10MB)
+        // to avoid freezing the UI. Names will be resolved separately.
+        let name_map = if Self::project_json_path(game_dir).metadata().map(|m| m.len()).unwrap_or(0) > 10_000_000 {
+            NameMap::default()
+        } else {
+            self.resolve_names(game_dir).unwrap_or_default()
+        };
         let (variables, switches, custom_sections) = Self::extract_structured(&raw, &name_map);
 
         Ok(SaveData {

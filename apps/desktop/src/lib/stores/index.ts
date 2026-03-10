@@ -13,12 +13,12 @@ export const activePatch = writable<PatchInfo | null>(null);
 export const toasts = writable<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
 
 let toastId = 0;
-export function addToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
+export function addToast(message: string, type: 'success' | 'error' | 'info' = 'info', duration = 4000) {
   const id = toastId++;
   toasts.update(t => [...t, { id, message, type }]);
   setTimeout(() => {
     toasts.update(t => t.filter(toast => toast.id !== id));
-  }, 4000);
+  }, duration);
 }
 
 export function markModified(path: string) {

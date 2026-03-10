@@ -15,8 +15,8 @@
   })());
 </script>
 
-<div class="modal-overlay" onclick={onclose}>
-  <div class="diff-modal" onclick={(e) => e.stopPropagation()}>
+<div class="modal-overlay" role="button" tabindex="-1" onclick={onclose} onkeydown={(e) => { if (e.key === 'Escape') onclose(); }}>
+  <div class="diff-modal" role="dialog" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
     <div class="diff-header">
       <h3>Changes Detected ({entries.length})</h3>
       <input type="text" placeholder="Filter changes..." bind:value={search} class="search-input" />

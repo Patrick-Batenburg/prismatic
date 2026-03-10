@@ -46,6 +46,8 @@ pub struct EquipSlot {
     pub slot_name: String,
     pub item_id: Option<u32>,
     pub item_name: Option<String>,
+    /// "weapon" or "armor" — determines which name list to use
+    pub data_class: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -140,4 +142,7 @@ pub struct EngineInfo {
     pub supports_debug: bool,
     pub save_extensions: Vec<String>,
     pub description: String,
+    /// If set, the frontend should prompt the user to select a separate save directory
+    /// after detection, using this string as a hint message.
+    pub save_dir_hint: Option<String>,
 }

@@ -128,6 +128,19 @@
   function selectCurrent() {
     onselect(currentPath);
   }
+
+  function simulateScan() {
+    scanning = true;
+    const total = 20;
+    scanProgress = { done: 0, total };
+    const interval = setInterval(() => {
+      scanProgress = { done: scanProgress.done + 1, total };
+      if (scanProgress.done >= total) {
+        clearInterval(interval);
+        scanning = false;
+      }
+    }, 200);
+  }
 </script>
 
 <div class="modal-overlay" role="button" tabindex="-1" onclick={oncancel} onkeydown={(e) => { if (e.key === 'Escape') oncancel(); }}>
@@ -149,6 +162,9 @@
         onkeydown={(e) => { if (e.key === 'Enter') handlePathSubmit(); }}
       />
       <button class="btn-go" onclick={handlePathSubmit}>Go</button>
+      {#if import.meta.env.DEV}
+        <button class="btn-go" onclick={simulateScan} title="DEV: simulate scan">▶</button>
+      {/if}
       <button
         class="btn-deep"
         class:active={deepScan}
@@ -159,12 +175,10 @@
       </button>
     </div>
 
-    {#if scanning}
-      <div class="scan-bar">
-        <div class="scan-progress" style="width: {scanProgress.total > 0 ? (scanProgress.done / scanProgress.total * 100) : 0}%"></div>
-        <span class="scan-text">Scanning {scanProgress.done}/{scanProgress.total} folders...</span>
-      </div>
-    {/if}
+    <div class="scan-bar" class:visible={scanning}>
+      <div class="scan-progress" style="width: {scanProgress.total > 0 ? (scanProgress.done / scanProgress.total * 100) : 0}%"></div>
+      <span class="scan-text">Scanning {scanProgress.done}/{scanProgress.total} folders...</span>
+    </div>
 
     {#if loading}
       <div class="loading-state">Loading...</div>
@@ -326,6 +340,14 @@
     border-radius: var(--radius);
     margin-bottom: 8px;
     overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  .scan-bar.visible {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .scan-progress {
@@ -349,13 +371,11 @@
   }
 
   .file-list {
-    flex: 1;
     overflow-y: auto;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--bg-primary);
-    min-height: 200px;
-    max-height: 400px;
+    height: 400px;
   }
 
   .file-entry {

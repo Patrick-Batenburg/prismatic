@@ -1,3 +1,5 @@
+mod pickle;
+
 use crate::engines::types::*;
 use crate::engines::EnginePlugin;
 use chrono::Local;
@@ -115,13 +117,13 @@ impl RenpyPlugin {
             entry.read_to_end(&mut bytes)
                 .map_err(|e| format!("Failed to read log entry: {e}"))?;
 
-            // Try to deserialize pickle to JSON-compatible value
-            match serde_pickle::from_slice(&bytes, serde_pickle::DeOptions::default()) {
+            // Parse pickle with our custom VM that handles Ren'Py types
+            match pickle::parse_pickle(&bytes) {
                 Ok(val) => val,
-                Err(_) => {
-                    // If pickle parsing fails, store as base64 for raw editing
+                Err(e) => {
+                    eprintln!("[renpy] pickle parse error: {e}");
                     serde_json::json!({
-                        "_pickle_error": "Could not fully parse pickle data",
+                        "_pickle_error": format!("Could not fully parse pickle data: {e}"),
                         "_raw_base64": base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes),
                         "_size": bytes.len()
                     })
@@ -208,6 +210,7 @@ impl EnginePlugin for RenpyPlugin {
             supports_debug: true,
             save_extensions: vec!["save".into()],
             description: "Ren'Py visual novel engine saves".into(),
+            save_dir_hint: None,
         }
     }
 

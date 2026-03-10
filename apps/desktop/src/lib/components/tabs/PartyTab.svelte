@@ -1,9 +1,47 @@
 <script lang="ts">
-  import type { Character } from '$lib/api';
+  import type { Character, CurrencyInfo, NameMap } from '$lib/api';
   import { markModified } from '$lib/stores';
 
-  let { party = $bindable() }: { party: Character[] } = $props();
+  let { party = $bindable(), currency = $bindable(), nameMap = null }: {
+    party: Character[];
+    currency: CurrencyInfo | null;
+    nameMap: NameMap | null;
+  } = $props();
+
+  function getEquipOptions(dataClass: string): { id: number; name: string }[] {
+    if (!nameMap) return [];
+    const map = dataClass === 'weapon' ? nameMap.weapons : nameMap.armors;
+    if (!map) return [];
+    return Object.entries(map)
+      .map(([id, name]) => ({ id: Number(id), name }))
+      .sort((a, b) => a.id - b.id);
+  }
+
+  function onEquipChange(charIdx: number, eqIdx: number, eq: { item_id: number | null; item_name: string | null; data_class: string }, value: string) {
+    const id = Number(value);
+    eq.item_id = id || null;
+    // Update the displayed name from nameMap
+    if (id && nameMap) {
+      const map = eq.data_class === 'weapon' ? nameMap.weapons : nameMap.armors;
+      eq.item_name = map?.[id] ?? null;
+    } else {
+      eq.item_name = null;
+    }
+    markModified(`party.${charIdx}.equips.${eqIdx}`);
+  }
 </script>
+
+<!-- Currency at the top -->
+{#if currency}
+  <div class="currency-bar">
+    <label class="currency-label" for="party-currency">
+      <span class="currency-icon">💰</span>
+      <span class="currency-name">{currency.label}</span>
+    </label>
+    <input id="party-currency" type="number" class="currency-input" bind:value={currency.amount}
+      oninput={() => markModified('currency.amount')} />
+  </div>
+{/if}
 
 <div class="party-grid">
   {#each party as char, idx}
@@ -39,10 +77,24 @@
       {#if char.equipment.length > 0}
         <div class="equip-section">
           <h4>Equipment</h4>
-          {#each char.equipment as eq}
+          {#each char.equipment as eq, ei}
+            {@const options = getEquipOptions(eq.data_class)}
             <div class="equip-row">
               <span class="equip-slot">{eq.slot_name}</span>
-              <span class="equip-name">{eq.item_name || (eq.item_id ? `#${eq.item_id}` : '—')}</span>
+              {#if options.length > 0}
+                <select
+                  class="equip-select"
+                  value={eq.item_id ?? 0}
+                  onchange={(e) => onEquipChange(idx, ei, eq, e.currentTarget.value)}
+                >
+                  <option value={0}>— None —</option>
+                  {#each options as opt}
+                    <option value={opt.id}>{opt.name}</option>
+                  {/each}
+                </select>
+              {:else}
+                <span class="equip-name">{eq.item_name || (eq.item_id ? `#${eq.item_id}` : '—')}</span>
+              {/if}
             </div>
           {/each}
         </div>
@@ -63,9 +115,40 @@
 </div>
 
 <style>
+  .currency-bar {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .currency-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .currency-icon { font-size: 24px; }
+  .currency-name { color: var(--text-primary); }
+
+  .currency-input {
+    font-size: 18px;
+    font-weight: 600;
+    padding: 6px 12px;
+    width: 180px;
+    text-align: right;
+    background: var(--bg-input);
+  }
+
   .party-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
     gap: 16px;
   }
 
@@ -153,12 +236,33 @@
   .equip-row {
     display: flex;
     justify-content: space-between;
-    padding: 4px 0;
+    align-items: center;
+    padding: 5px 0;
     font-size: 13px;
     border-bottom: 1px solid var(--border);
+    gap: 12px;
   }
 
-  .equip-slot { color: var(--text-muted); }
+  .equip-slot {
+    color: var(--text-muted);
+    min-width: 80px;
+    flex-shrink: 0;
+  }
+
+  .equip-select {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 13px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    min-width: 0;
+  }
+  .equip-select:hover { border-color: var(--border-focus); }
+  .equip-select:focus { border-color: var(--accent-primary); outline: none; }
+
   .equip-name { color: var(--text-primary); }
 
   .skills-section {
