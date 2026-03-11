@@ -21,6 +21,7 @@ pub fn run() {
     registry.register(Box::new(engines::unreal_engine::UnrealPlugin));
     registry.register(Box::new(engines::sugarcube::SugarCubePlugin));
     registry.register(Box::new(engines::sqlite::SqlitePlugin));
+    registry.register(Box::new(engines::unity::UnityPlugin));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

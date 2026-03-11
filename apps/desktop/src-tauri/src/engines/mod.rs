@@ -7,6 +7,7 @@ pub mod sugarcube;
 pub mod types;
 pub mod unreal_engine;
 pub mod sqlite;
+pub mod unity;
 pub mod wolf_rpg_editor;
 
 use std::path::Path;

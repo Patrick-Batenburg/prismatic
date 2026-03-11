@@ -18,6 +18,7 @@
     'unreal-engine': 'unreal-engine',
     'sugarcube': 'sugarcube',
     'sqlite': 'sqlite',
+    'unity': 'unity',
   };
 
   const engineEmojis: Record<string, string> = {
@@ -30,6 +31,7 @@
     'unreal-engine': '🔷',
     'sugarcube': '🍬',
     'sqlite': '🗄️',
+    'unity': '🎮',
   };
 
   let logoFailed = $state<Record<string, boolean>>({});
@@ -44,6 +46,7 @@
     'unreal-engine': '#1565c0',
     'sugarcube': '#8b5cf6',
     'sqlite': '#003b57',
+    'unity': '#222c37',
   };
 
   function getPickerConfig(engine: EngineInfo) {
@@ -54,6 +57,8 @@
         return { extension: 'sav', defaultDir: '%LOCALAPPDATA%' as string | null, badgeColor: '#1565c0', title: 'Select Unreal Engine Save Folder' };
       case 'sugarcube':
         return { extension: 'save', defaultDir: '%USERPROFILE%/Downloads' as string | null, badgeColor: '#8b5cf6', title: 'Select SugarCube Save Folder' };
+      case 'unity':
+        return { extension: 'json', defaultDir: '%LOCALAPPDATA%Low' as string | null, badgeColor: '#222c37', title: 'Select Unity Save Folder' };
       default:
         return { extension: 'sav', defaultDir: null as string | null, badgeColor: '#6c5ce7', title: 'Select Save Folder' };
     }

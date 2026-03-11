@@ -334,6 +334,8 @@
           return { extension: 'sav', defaultDir: '%LOCALAPPDATA%' as string | null, badgeColor: '#1565c0', title: 'Select Unreal Save Folder' };
         case 'sugarcube':
           return { extension: 'save', defaultDir: '%USERPROFILE%/Downloads' as string | null, badgeColor: '#8b5cf6', title: 'Select SugarCube Save Folder' };
+        case 'unity':
+          return { extension: 'json', defaultDir: '%LOCALAPPDATA%Low' as string | null, badgeColor: '#222c37', title: 'Select Unity Save Folder' };
         default:
           return { extension: 'sav', defaultDir: null as string | null, badgeColor: '#6c5ce7', title: 'Select Save Folder' };
       }
