@@ -1,15 +1,15 @@
 <script lang="ts">
-  import JsonNode from '$lib/components/JsonNode.svelte';
+  import JsonNode from "$lib/components/JsonNode.svelte";
 
-  let { data, engineId = '' }: { data: any; engineId?: string } = $props();
-  let searchInput = $state('');
-  let search = $state('');
+  let { data, engineId = "" }: { data: unknown; engineId?: string } = $props();
+  let searchInput = $state("");
+  let search = $state("");
   let matchCount = $state(0);
   let expandAll = $state(false);
-  let copyLabel = $state('Copy raw');
+  let copyLabel = $state("Copy raw");
 
   // Ren'Py-specific filters
-  let isRenpy = $derived(engineId === 'renpy');
+  let isRenpy = $derived(engineId === "renpy");
   let hideRenpyDialogs = $state(true);
   let hideRenpyVars = $state(true);
 
@@ -27,30 +27,31 @@
 
   // "Hide Dialogs": any store.* entry that is a complex object with a __class__
   // These are game event trees, quest nodes, gallery entries, dialog objects, etc.
-  function isRenpyDialog(_key: string, value: any): boolean {
-    if (typeof value !== 'object' || value === null || !('__class__' in value)) return false;
-    const cls: string = value.__class__;
+  function isRenpyDialog(_key: string, value: unknown): boolean {
+    if (typeof value !== "object" || value === null || !("__class__" in value)) return false;
+    const cls: string = (value as Record<string, string>).__class__;
     // Any store.* class that's an event/dialog/quest/gallery/root object
-    if (cls.startsWith('store.')) return true;
+    if (cls.startsWith("store.")) return true;
     // renpy display/layout objects
-    if (cls.startsWith('renpy.display.') || cls.startsWith('renpy.execution.')) return true;
+    if (cls.startsWith("renpy.display.") || cls.startsWith("renpy.execution.")) return true;
     return false;
   }
 
   // "Hide Ren'Py variables": internal engine state keys
-  function isRenpyInternal(key: string, value: any): boolean {
+  function isRenpyInternal(key: string, value: unknown): boolean {
     // Internal renpy state: keys starting with _ (except _save_data, _metadata)
-    if (key.startsWith('_') && !key.startsWith('_save') && !key.startsWith('_metadata')) return true;
+    if (key.startsWith("_") && !key.startsWith("_save") && !key.startsWith("_metadata"))
+      return true;
     // store._ prefixed keys (internal renpy store vars)
-    if (key.startsWith('store._')) return true;
+    if (key.startsWith("store._")) return true;
     // renpy.* keyed entries
-    if (key.startsWith('renpy.')) return true;
+    if (key.startsWith("renpy.")) return true;
     // __class__, __version__ and other dunder keys inside objects
-    if (key.startsWith('__') && key.endsWith('__')) return true;
+    if (key.startsWith("__") && key.endsWith("__")) return true;
     // The rollback log object (item [1] in _save_data array)
-    if (typeof value === 'object' && value !== null && '__class__' in value) {
-      const cls: string = value.__class__;
-      if (cls.startsWith('renpy.')) return true;
+    if (typeof value === "object" && value !== null && "__class__" in value) {
+      const cls: string = (value as Record<string, string>).__class__;
+      if (cls.startsWith("renpy.")) return true;
     }
     return false;
   }
@@ -58,7 +59,7 @@
   let filterFn = $derived.by(() => {
     if (!isRenpy) return undefined;
     if (!hideRenpyDialogs && !hideRenpyVars) return undefined;
-    return (key: string, value: any): boolean => {
+    return (key: string, value: unknown): boolean => {
       if (hideRenpyDialogs && isRenpyDialog(key, value)) return false;
       if (hideRenpyVars && isRenpyInternal(key, value)) return false;
       return true;
@@ -69,22 +70,28 @@
     try {
       const json = JSON.stringify(data, null, 2);
       await navigator.clipboard.writeText(json);
-      copyLabel = 'Copied!';
-      setTimeout(() => copyLabel = 'Copy raw', 2000);
+      copyLabel = "Copied!";
+      setTimeout(() => (copyLabel = "Copy raw"), 2000);
     } catch {
-      copyLabel = 'Failed';
-      setTimeout(() => copyLabel = 'Copy raw', 2000);
+      copyLabel = "Failed";
+      setTimeout(() => (copyLabel = "Copy raw"), 2000);
     }
   }
 </script>
 
 <div class="raw-controls">
-  <input type="text" placeholder="Search keys or values..." value={searchInput} oninput={onSearchInput} class="search-input" />
+  <input
+    type="text"
+    placeholder="Search keys or values..."
+    value={searchInput}
+    oninput={onSearchInput}
+    class="search-input"
+  />
   {#if search}
     <span class="match-count">{matchCount} matches</span>
   {/if}
-  <button onclick={() => expandAll = !expandAll}>
-    {expandAll ? 'Collapse All' : 'Expand All'}
+  <button onclick={() => (expandAll = !expandAll)}>
+    {expandAll ? "Collapse All" : "Expand All"}
   </button>
   <button onclick={copyToClipboard} class="copy-btn">
     {copyLabel}
@@ -105,15 +112,7 @@
 {/if}
 
 <div class="json-tree">
-  <JsonNode
-    key="root"
-    value={data}
-    depth={0}
-    {search}
-    {expandAll}
-    {filterFn}
-    bind:matchCount
-  />
+  <JsonNode key="root" value={data} depth={0} {search} {expandAll} {filterFn} bind:matchCount />
 </div>
 
 <style>
@@ -124,7 +123,9 @@
     margin-bottom: 8px;
   }
 
-  .search-input { width: 300px; }
+  .search-input {
+    width: 300px;
+  }
 
   .match-count {
     font-size: 12px;
@@ -163,7 +164,7 @@
     padding: 12px;
     overflow: auto;
     max-height: calc(100vh - 200px);
-    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
     font-size: 13px;
     line-height: 1.6;
   }

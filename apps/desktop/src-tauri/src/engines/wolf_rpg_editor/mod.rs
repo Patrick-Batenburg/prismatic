@@ -34,7 +34,7 @@ impl EnginePlugin for WolfRpgEditorPlugin {
                 entries.filter_map(|e| e.ok()).any(|e| {
                     e.path()
                         .extension()
-                        .map_or(false, |ext| ext == "wolf-rpg-editor")
+                        .is_some_and(|ext| ext == "wolf-rpg-editor")
                 })
             })
             .unwrap_or(false);

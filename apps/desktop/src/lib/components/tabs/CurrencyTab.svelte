@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { CurrencyInfo } from '$lib/api';
-  import { markModified } from '$lib/stores';
+  import type { CurrencyInfo } from "$lib/api";
+  import { markModified } from "$lib/stores";
 
   let { currency = $bindable() }: { currency: CurrencyInfo } = $props();
 </script>
@@ -10,8 +10,13 @@
     <span class="currency-icon">💰</span>
     <span class="currency-name">{currency.label}</span>
   </label>
-  <input id="currency-amount" type="number" class="currency-input" bind:value={currency.amount}
-    oninput={() => markModified('currency.amount')} />
+  <input
+    id="currency-amount"
+    type="number"
+    class="currency-input"
+    bind:value={currency.amount}
+    oninput={() => markModified("currency.amount")}
+  />
 </div>
 
 <style>
@@ -34,8 +39,12 @@
     font-weight: 600;
   }
 
-  .currency-icon { font-size: 28px; }
-  .currency-name { color: var(--text-primary); }
+  .currency-icon {
+    font-size: 28px;
+  }
+  .currency-name {
+    color: var(--text-primary);
+  }
 
   .currency-input {
     font-size: 20px;

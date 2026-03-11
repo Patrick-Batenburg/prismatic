@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from "@tauri-apps/api/core";
 
 export interface EngineInfo {
   id: string;
@@ -19,7 +19,7 @@ export interface SaveFile {
 }
 
 export interface SaveData {
-  raw: any;
+  raw: unknown;
   party: Character[] | null;
   inventory: Inventory | null;
   currency: CurrencyInfo | null;
@@ -76,7 +76,7 @@ export interface CurrencyInfo {
 export interface Variable {
   id: number;
   name: string | null;
-  value: any;
+  value: unknown;
   group: string | null;
 }
 
@@ -94,7 +94,7 @@ export interface NamedId {
 export interface CustomSection {
   key: string;
   label: string;
-  data: any;
+  data: unknown;
 }
 
 export interface NameMap {
@@ -111,8 +111,8 @@ export interface NameMap {
 
 export interface DiffEntry {
   path: string;
-  old_value: any;
-  new_value: any;
+  old_value: unknown;
+  new_value: unknown;
 }
 
 export interface BackupEntry {
@@ -125,7 +125,7 @@ export interface BackupEntry {
 export interface PatchInfo {
   engine: string;
   game_dir: string;
-  patches: any[];
+  patches: unknown[];
   applied_at: string;
 }
 
@@ -150,7 +150,7 @@ export interface TableMeta {
 }
 
 export interface TableRow {
-  values: any[];
+  values: unknown[];
 }
 
 export interface TableQueryResult {
@@ -163,31 +163,31 @@ export interface CellChange {
   table: string;
   rowid: number;
   column: string;
-  value: any;
+  value: unknown;
 }
 
 export const api = {
-  listEngines: () => invoke<EngineInfo[]>('list_engines'),
-  detectEngine: (gameDir: string) => invoke<EngineInfo | null>('detect_engine', { gameDir }),
-  setGame: (engineId: string, gameDir: string) => invoke<void>('set_game', { engineId, gameDir }),
-  listSaves: () => invoke<SaveFile[]>('list_saves'),
-  loadSave: (savePath: string) => invoke<SaveData>('load_save', { savePath }),
-  saveFile: (savePath: string, data: SaveData) => invoke<string>('save_file', { savePath, data }),
-  getNames: () => invoke<NameMap>('get_names'),
-  getDiff: (savePath: string) => invoke<DiffEntry[]>('get_diff', { savePath }),
-  listBackups: (savePath: string) => invoke<BackupEntry[]>('list_backups', { savePath }),
-  restoreBackup: (backupPath: string, savePath: string) => invoke<void>('restore_backup', { backupPath, savePath }),
-  browseSaveDir: (dir: string | null, defaultDir: string | null, extension: string) => invoke<[string, SaveDirEntry[]]>('browse_save_dir', { dir, defaultDir, extension }),
+  listEngines: () => invoke<EngineInfo[]>("list_engines"),
+  detectEngine: (gameDir: string) => invoke<EngineInfo | null>("detect_engine", { gameDir }),
+  setGame: (engineId: string, gameDir: string) => invoke<void>("set_game", { engineId, gameDir }),
+  listSaves: () => invoke<SaveFile[]>("list_saves"),
+  loadSave: (savePath: string) => invoke<SaveData>("load_save", { savePath }),
+  saveFile: (savePath: string, data: SaveData) => invoke<string>("save_file", { savePath, data }),
+  getNames: () => invoke<NameMap>("get_names"),
+  getDiff: (savePath: string) => invoke<DiffEntry[]>("get_diff", { savePath }),
+  listBackups: (savePath: string) => invoke<BackupEntry[]>("list_backups", { savePath }),
+  restoreBackup: (backupPath: string, savePath: string) =>
+    invoke<void>("restore_backup", { backupPath, savePath }),
+  browseSaveDir: (dir: string | null, defaultDir: string | null, extension: string) =>
+    invoke<[string, SaveDirEntry[]]>("browse_save_dir", { dir, defaultDir, extension }),
   deepScanDir: (dir: string, extension: string) =>
-    invoke<void>('deep_scan_dir', { dir, extension }),
-  applyDebugPatch: () => invoke<PatchInfo>('apply_debug_patch'),
-  revertDebugPatch: (patch: PatchInfo) => invoke<void>('revert_debug_patch', { patch }),
+    invoke<void>("deep_scan_dir", { dir, extension }),
+  applyDebugPatch: () => invoke<PatchInfo>("apply_debug_patch"),
+  revertDebugPatch: (patch: PatchInfo) => invoke<void>("revert_debug_patch", { patch }),
   queryTable: (tableName: string, offset: number, limit: number) =>
-    invoke<TableQueryResult>('query_table', { tableName, offset, limit }),
-  updateRows: (changes: CellChange[]) =>
-    invoke<number>('update_rows', { changes }),
-  insertRow: (tableName: string) =>
-    invoke<number>('insert_row', { tableName }),
+    invoke<TableQueryResult>("query_table", { tableName, offset, limit }),
+  updateRows: (changes: CellChange[]) => invoke<number>("update_rows", { changes }),
+  insertRow: (tableName: string) => invoke<number>("insert_row", { tableName }),
   deleteRows: (tableName: string, rowids: number[]) =>
-    invoke<number>('delete_rows', { tableName, rowids }),
+    invoke<number>("delete_rows", { tableName, rowids }),
 };

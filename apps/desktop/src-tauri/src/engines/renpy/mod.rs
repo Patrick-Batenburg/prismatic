@@ -407,10 +407,12 @@ impl RenpyPlugin {
 
             // define statements: define variable_name = value
             if trimmed.starts_with("define ") || trimmed.starts_with("default ") {
-                let rest = if trimmed.starts_with("define ") {
-                    &trimmed[7..]
+                let rest = if let Some(r) = trimmed.strip_prefix("define ") {
+                    r
+                } else if let Some(r) = trimmed.strip_prefix("default ") {
+                    r
                 } else {
-                    &trimmed[8..]
+                    continue;
                 };
 
                 if let Some(eq_pos) = rest.find('=') {

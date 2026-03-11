@@ -1,7 +1,7 @@
 <script lang="ts">
-  import '../app.css';
-  import { toasts } from '$lib/stores';
-  import { statusMessage } from '$lib/stores';
+  import "../app.css";
+  import { toasts } from "$lib/stores";
+  import { statusMessage } from "$lib/stores";
 
   let { children } = $props();
   let toastList = $derived($toasts);
@@ -73,12 +73,28 @@
     max-width: 400px;
   }
 
-  .toast-success { background: var(--success); color: white; }
-  .toast-error { background: var(--danger); color: white; }
-  .toast-info { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); }
+  .toast-success {
+    background: var(--success);
+    color: white;
+  }
+  .toast-error {
+    background: var(--danger);
+    color: white;
+  }
+  .toast-info {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+  }
 
   @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
   }
 </style>

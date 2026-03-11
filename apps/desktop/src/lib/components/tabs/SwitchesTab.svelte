@@ -1,24 +1,25 @@
 <script lang="ts">
-  import type { Switch } from '$lib/api';
-  import { markModified } from '$lib/stores';
+  import type { Switch } from "$lib/api";
+  import { markModified } from "$lib/stores";
 
   let { switches = $bindable() }: { switches: Switch[] } = $props();
-  let search = $state('');
-  let filterState = $state<'all' | 'on' | 'off'>('all');
+  let search = $state("");
+  let filterState = $state<"all" | "on" | "off">("all");
 
-  let filtered = $derived((() => {
-    let list = switches;
-    if (filterState === 'on') list = list.filter(s => s.value);
-    if (filterState === 'off') list = list.filter(s => !s.value);
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(s =>
-        s.id.toString().includes(q) ||
-        (s.name && s.name.toLowerCase().includes(q))
-      );
-    }
-    return list;
-  })());
+  let filtered = $derived(
+    (() => {
+      let list = switches;
+      if (filterState === "on") list = list.filter((s) => s.value);
+      if (filterState === "off") list = list.filter((s) => !s.value);
+      if (search) {
+        const q = search.toLowerCase();
+        list = list.filter(
+          (s) => s.id.toString().includes(q) || (s.name && s.name.toLowerCase().includes(q)),
+        );
+      }
+      return list;
+    })(),
+  );
 
   function toggleSwitch(sw: Switch, idx: number) {
     sw.value = !sw.value;
@@ -30,9 +31,9 @@
   <input type="text" placeholder="Search switches..." bind:value={search} class="search-input" />
 
   <div class="filter-tabs">
-    <button class:active={filterState === 'all'} onclick={() => filterState = 'all'}>All</button>
-    <button class:active={filterState === 'on'} onclick={() => filterState = 'on'}>ON</button>
-    <button class:active={filterState === 'off'} onclick={() => filterState = 'off'}>OFF</button>
+    <button class:active={filterState === "all"} onclick={() => (filterState = "all")}>All</button>
+    <button class:active={filterState === "on"} onclick={() => (filterState = "on")}>ON</button>
+    <button class:active={filterState === "off"} onclick={() => (filterState = "off")}>OFF</button>
   </div>
 
   <span class="count">{filtered.length} / {switches.length}</span>
@@ -44,13 +45,16 @@
     <span class="col-name">Name</span>
     <span class="col-toggle">State</span>
   </div>
-  {#each filtered as sw, idx}
+  {#each filtered as sw, idx (sw.id)}
     <div class="table-row">
       <span class="col-id">{sw.id}</span>
       <span class="col-name">{sw.name || `#${sw.id}`}</span>
-      <button class="col-toggle toggle-btn" class:on={sw.value}
-        onclick={() => toggleSwitch(sw, idx)}>
-        {sw.value ? 'ON' : 'OFF'}
+      <button
+        class="col-toggle toggle-btn"
+        class:on={sw.value}
+        onclick={() => toggleSwitch(sw, idx)}
+      >
+        {sw.value ? "ON" : "OFF"}
       </button>
     </div>
   {/each}
@@ -64,7 +68,9 @@
     margin-bottom: 12px;
   }
 
-  .search-input { width: 240px; }
+  .search-input {
+    width: 240px;
+  }
 
   .filter-tabs {
     display: flex;
@@ -81,7 +87,11 @@
     color: white;
   }
 
-  .count { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+  .count {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
 
   .sw-table {
     background: var(--bg-card);
@@ -106,11 +116,23 @@
     align-items: center;
     font-size: 13px;
   }
-  .table-row:hover { background: var(--bg-hover); }
+  .table-row:hover {
+    background: var(--bg-hover);
+  }
 
-  .col-id { width: 60px; color: var(--text-muted); font-family: monospace; font-size: 12px; }
-  .col-name { flex: 1; }
-  .col-toggle { width: 60px; text-align: center; }
+  .col-id {
+    width: 60px;
+    color: var(--text-muted);
+    font-family: monospace;
+    font-size: 12px;
+  }
+  .col-name {
+    flex: 1;
+  }
+  .col-toggle {
+    width: 60px;
+    text-align: center;
+  }
 
   .toggle-btn {
     padding: 2px 10px;

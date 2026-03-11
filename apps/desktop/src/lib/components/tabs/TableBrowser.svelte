@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { api, type TableMeta, type TableRow, type CellChange } from '$lib/api';
-  import { addToast } from '$lib/stores';
+  import { api, type TableMeta, type TableRow, type CellChange } from "$lib/api";
+  import { addToast } from "$lib/stores";
+  import { SvelteMap, SvelteSet } from "svelte/reactivity";
 
   let { tables }: { tables: TableMeta[] } = $props();
 
@@ -13,9 +14,9 @@
   let page = $state(0);
   let loading = $state(false);
   let editingCell = $state<{ rowIdx: number; colIdx: number } | null>(null);
-  let editValue = $state('');
-  let changes = $state(new Map<string, CellChange>());
-  let selectedRowids = $state(new Set<number>());
+  let editValue = $state("");
+  let changes = new SvelteMap<string, CellChange>();
+  let selectedRowids = new SvelteSet<number>();
 
   let totalPages = $derived(Math.max(1, Math.ceil(totalRows / PAGE_SIZE)));
   let changeCount = $derived(changes.size);
@@ -32,8 +33,8 @@
   async function selectTable(name: string) {
     selectedTable = name;
     page = 0;
-    selectedRowids = new Set();
-    changes = new Map();
+    selectedRowids.clear();
+    changes.clear();
     await loadData();
   }
 
@@ -45,8 +46,8 @@
       columns = result.columns;
       rows = result.rows;
       totalRows = result.total_rows;
-    } catch (e: any) {
-      addToast(`Failed to load table: ${e}`, 'error');
+    } catch (e) {
+      addToast(`Failed to load table: ${e}`, "error");
     } finally {
       loading = false;
     }
@@ -67,7 +68,7 @@
     // If there's a staged change, use that value; otherwise use current cell value
     const existing = changes.get(key);
     const currentVal = existing !== undefined ? existing.value : rows[rowIdx].values[actualColIdx];
-    editValue = currentVal === null ? '' : String(currentVal);
+    editValue = currentVal === null ? "" : String(currentVal);
     editingCell = { rowIdx, colIdx: displayColIdx };
   }
 
@@ -84,11 +85,9 @@
     // If the parsed value matches the original, remove any staged change
     if (parsed === originalValue || (parsed === null && originalValue === null)) {
       changes.delete(key);
-      changes = new Map(changes);
     } else {
       const change: CellChange = { table: selectedTable, rowid, column: colName, value: parsed };
       changes.set(key, change);
-      changes = new Map(changes);
     }
     editingCell = null;
   }
@@ -98,23 +97,23 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       commitEdit();
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       cancelEdit();
     }
   }
 
-  function parseValue(val: string): any {
-    if (val === '') return null;
-    if (val === 'true') return true;
-    if (val === 'false') return false;
+  function parseValue(val: string): unknown {
+    if (val === "") return null;
+    if (val === "true") return true;
+    if (val === "false") return false;
     const num = Number(val);
-    if (!isNaN(num) && val.trim() !== '') return num;
+    if (!isNaN(num) && val.trim() !== "") return num;
     return val;
   }
 
-  function getCellValue(rowIdx: number, displayColIdx: number): any {
+  function getCellValue(rowIdx: number, displayColIdx: number): unknown {
     const actualColIdx = displayColIdx + 1;
     const rowid = rows[rowIdx].values[0];
     const colName = columns[actualColIdx];
@@ -132,14 +131,14 @@
     return changes.has(key);
   }
 
-  function formatCell(value: any): string {
-    if (value === null) return 'NULL';
-    if (typeof value === 'boolean') return String(value);
+  function formatCell(value: unknown): string {
+    if (value === null) return "NULL";
+    if (typeof value === "boolean") return String(value);
     return String(value);
   }
 
   function discardChanges() {
-    changes = new Map();
+    changes.clear();
   }
 
   function toggleRowSelection(rowid: number) {
@@ -148,17 +147,17 @@
     } else {
       selectedRowids.add(rowid);
     }
-    selectedRowids = new Set(selectedRowids);
+    // SvelteSet is reactive, no reassignment needed
   }
 
   async function addRow() {
     if (!selectedTable) return;
     try {
       const newRowid = await api.insertRow(selectedTable);
-      addToast(`Inserted row ${newRowid}`, 'success');
+      addToast(`Inserted row ${newRowid}`, "success");
       await loadData();
-    } catch (e: any) {
-      addToast(`Failed to insert row: ${e}`, 'error');
+    } catch (e) {
+      addToast(`Failed to insert row: ${e}`, "error");
     }
   }
 
@@ -167,11 +166,11 @@
     try {
       const ids = Array.from(selectedRowids);
       const deleted = await api.deleteRows(selectedTable, ids);
-      addToast(`Deleted ${deleted} row(s)`, 'success');
-      selectedRowids = new Set();
+      addToast(`Deleted ${deleted} row(s)`, "success");
+      selectedRowids.clear();
       await loadData();
-    } catch (e: any) {
-      addToast(`Failed to delete: ${e}`, 'error');
+    } catch (e) {
+      addToast(`Failed to delete: ${e}`, "error");
     }
   }
 
@@ -180,11 +179,11 @@
     try {
       const changeList = Array.from(changes.values());
       const updated = await api.updateRows(changeList);
-      addToast(`Updated ${updated} row(s)`, 'success');
-      changes = new Map();
+      addToast(`Updated ${updated} row(s)`, "success");
+      changes.clear();
       await loadData();
-    } catch (e: any) {
-      addToast(`Failed to save: ${e}`, 'error');
+    } catch (e) {
+      addToast(`Failed to save: ${e}`, "error");
     }
   }
 </script>
@@ -192,7 +191,7 @@
 <div class="table-browser">
   <aside class="sidebar">
     <div class="sidebar-header">Tables</div>
-    {#each tables as table}
+    {#each tables as table (table.name)}
       <button
         class="table-item"
         class:active={selectedTable === table.name}
@@ -207,7 +206,7 @@
   <div class="main-area">
     {#if changeCount > 0}
       <div class="changes-bar">
-        <span>{changeCount} unsaved change{changeCount !== 1 ? 's' : ''}</span>
+        <span>{changeCount} unsaved change{changeCount !== 1 ? "s" : ""}</span>
         <div class="changes-actions">
           <button class="btn-discard" onclick={discardChanges}>Discard</button>
           <button class="btn-save" onclick={saveChanges}>Save</button>
@@ -222,7 +221,11 @@
     {:else}
       <div class="toolbar">
         <button class="btn-action" onclick={addRow}>+ Add Row</button>
-        <button class="btn-action btn-danger" onclick={deleteSelectedRows} disabled={selectedRowids.size === 0}>
+        <button
+          class="btn-action btn-danger"
+          onclick={deleteSelectedRows}
+          disabled={selectedRowids.size === 0}
+        >
           Delete ({selectedRowids.size})
         </button>
       </div>
@@ -231,19 +234,23 @@
           <thead>
             <tr>
               <th class="checkbox-col"></th>
-              {#each displayColumns as col}
+              {#each displayColumns as col (col)}
                 <th>{col}</th>
               {/each}
             </tr>
           </thead>
           <tbody>
-            {#each rows as row, rowIdx}
+            {#each rows as row, rowIdx (row.values[0])}
               {@const rowid = row.values[0]}
               <tr class:row-selected={selectedRowids.has(rowid)}>
                 <td class="checkbox-col">
-                  <input type="checkbox" checked={selectedRowids.has(rowid)} onchange={() => toggleRowSelection(rowid)} />
+                  <input
+                    type="checkbox"
+                    checked={selectedRowids.has(rowid)}
+                    onchange={() => toggleRowSelection(rowid)}
+                  />
                 </td>
-                {#each displayColumns as _, colIdx}
+                {#each displayColumns as _, colIdx (colIdx)}
                   <td
                     class:changed={isCellChanged(rowIdx, colIdx)}
                     ondblclick={() => startEdit(rowIdx, colIdx)}
@@ -259,7 +266,10 @@
                         autofocus
                       />
                     {:else}
-                      <span class="cell-value" class:null-value={getCellValue(rowIdx, colIdx) === null}>
+                      <span
+                        class="cell-value"
+                        class:null-value={getCellValue(rowIdx, colIdx) === null}
+                      >
                         {formatCell(getCellValue(rowIdx, colIdx))}
                       </span>
                     {/if}
@@ -445,7 +455,8 @@
     background: rgba(99, 102, 241, 0.1);
   }
 
-  .loading, .empty {
+  .loading,
+  .empty {
     display: flex;
     align-items: center;
     justify-content: center;

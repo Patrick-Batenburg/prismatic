@@ -1,19 +1,27 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { api, type SaveFile, type SaveData, type DiffEntry, type BackupEntry } from '$lib/api';
+  import { goto } from "$app/navigation";
+  import { api, type SaveFile, type DiffEntry, type BackupEntry } from "$lib/api";
   import {
-    currentEngine, currentGameDir, saves, currentSave, currentSavePath,
-    nameMap, statusMessage, addToast, activePatch, modifiedFields
-  } from '$lib/stores';
-  import PartyTab from '$lib/components/tabs/PartyTab.svelte';
-  import InventoryTab from '$lib/components/tabs/InventoryTab.svelte';
-  import VariablesTab from '$lib/components/tabs/VariablesTab.svelte';
-  import SwitchesTab from '$lib/components/tabs/SwitchesTab.svelte';
+    currentEngine,
+    currentGameDir,
+    saves,
+    currentSave,
+    currentSavePath,
+    nameMap,
+    statusMessage,
+    addToast,
+    activePatch,
+    modifiedFields,
+  } from "$lib/stores";
+  import PartyTab from "$lib/components/tabs/PartyTab.svelte";
+  import InventoryTab from "$lib/components/tabs/InventoryTab.svelte";
+  import VariablesTab from "$lib/components/tabs/VariablesTab.svelte";
+  import SwitchesTab from "$lib/components/tabs/SwitchesTab.svelte";
   // Currency is now part of PartyTab
-  import RawTab from '$lib/components/tabs/RawTab.svelte';
-  import TableBrowser from '$lib/components/tabs/TableBrowser.svelte';
-  import DiffView from '$lib/components/DiffView.svelte';
-  import SaveFolderPicker from '$lib/components/SaveFolderPicker.svelte';
+  import RawTab from "$lib/components/tabs/RawTab.svelte";
+  import TableBrowser from "$lib/components/tabs/TableBrowser.svelte";
+  import DiffView from "$lib/components/DiffView.svelte";
+  import SaveFolderPicker from "$lib/components/SaveFolderPicker.svelte";
 
   let engine = $derived($currentEngine);
   let gameDir = $derived($currentGameDir);
@@ -23,7 +31,7 @@
   let patch = $derived($activePatch);
   let names = $derived($nameMap);
 
-  let activeTab = $state('party');
+  let activeTab = $state("party");
   let loading = $state(false);
   let showDiff = $state(false);
   let diffEntries = $state<DiffEntry[]>([]);
@@ -32,20 +40,22 @@
   let showFlashPicker = $state(false);
 
   // Available tabs based on save data
-  let tabs = $derived((() => {
-    const t: { id: string; label: string; available: boolean }[] = [
-      { id: 'party', label: 'Party', available: !!(save?.party || save?.currency) },
-      { id: 'inventory', label: 'Inventory', available: !!save?.inventory },
-      { id: 'variables', label: 'Variables', available: !!save?.variables },
-      { id: 'switches', label: 'Switches', available: !!save?.switches },
-      { id: 'raw', label: 'Raw', available: !!save },
-    ];
-    return t.filter(tab => tab.available);
-  })());
+  let tabs = $derived(
+    (() => {
+      const t: { id: string; label: string; available: boolean }[] = [
+        { id: "party", label: "Party", available: !!(save?.party || save?.currency) },
+        { id: "inventory", label: "Inventory", available: !!save?.inventory },
+        { id: "variables", label: "Variables", available: !!save?.variables },
+        { id: "switches", label: "Switches", available: !!save?.switches },
+        { id: "raw", label: "Raw", available: !!save },
+      ];
+      return t.filter((tab) => tab.available);
+    })(),
+  );
 
   $effect(() => {
     if (!engine || !gameDir) {
-      goto('/');
+      goto("/");
       return;
     }
     loadSaves();
@@ -59,9 +69,11 @@
       try {
         const names = await api.getNames();
         nameMap.set(names);
-      } catch { /* name resolution is optional */ }
+      } catch {
+        /* name resolution is optional */
+      }
     } catch (e) {
-      addToast(`Failed to list saves: ${e}`, 'error');
+      addToast(`Failed to list saves: ${e}`, "error");
     }
   }
 
@@ -75,11 +87,11 @@
       statusMessage.set(`${engine?.name} — ${sf.name}`);
 
       // Auto-select first available tab
-      if (tabs.length > 0 && !tabs.find(t => t.id === activeTab)) {
+      if (tabs.length > 0 && !tabs.find((t) => t.id === activeTab)) {
         activeTab = tabs[0].id;
       }
     } catch (e) {
-      addToast(`Failed to load save: ${e}`, 'error');
+      addToast(`Failed to load save: ${e}`, "error");
     } finally {
       loading = false;
     }
@@ -89,10 +101,10 @@
     if (!savePath || !save) return;
     try {
       const msg = await api.saveFile(savePath, save);
-      addToast(msg, 'success');
+      addToast(msg, "success");
       modifiedFields.set(new Set());
     } catch (e) {
-      addToast(`Save failed: ${e}`, 'error');
+      addToast(`Save failed: ${e}`, "error");
     }
   }
 
@@ -103,14 +115,14 @@
       if (diffEntries.length > 0) {
         showDiff = true;
       } else {
-        addToast('No changes detected', 'info');
+        addToast("No changes detected", "info");
       }
       // Reload the save
       const data = await api.loadSave(savePath);
       currentSave.set(data);
       modifiedFields.set(new Set());
     } catch (e) {
-      addToast(`Reload failed: ${e}`, 'error');
+      addToast(`Reload failed: ${e}`, "error");
     }
   }
 
@@ -120,14 +132,14 @@
       if (patch) {
         await api.revertDebugPatch(patch);
         activePatch.set(null);
-        addToast('Debug mode reverted', 'success');
+        addToast("Debug mode reverted", "success");
       } else {
         const p = await api.applyDebugPatch();
         activePatch.set(p);
-        addToast('Debug mode enabled', 'success');
+        addToast("Debug mode enabled", "success");
       }
     } catch (e) {
-      addToast(`Debug patch failed: ${e}`, 'error');
+      addToast(`Debug patch failed: ${e}`, "error");
     }
   }
 
@@ -137,7 +149,7 @@
       backups = await api.listBackups(savePath);
       showBackups = true;
     } catch (e) {
-      addToast(`Failed to list backups: ${e}`, 'error');
+      addToast(`Failed to list backups: ${e}`, "error");
     }
   }
 
@@ -145,13 +157,13 @@
     if (!savePath) return;
     try {
       await api.restoreBackup(backup.path, savePath);
-      addToast('Backup restored', 'success');
+      addToast("Backup restored", "success");
       showBackups = false;
       // Reload
       const data = await api.loadSave(savePath);
       currentSave.set(data);
     } catch (e) {
-      addToast(`Restore failed: ${e}`, 'error');
+      addToast(`Restore failed: ${e}`, "error");
     }
   }
 
@@ -166,7 +178,7 @@
       statusMessage.set(`${engine?.name} — ${path}`);
       await loadSaves();
     } catch (e) {
-      addToast(`Failed to change folder: ${e}`, 'error');
+      addToast(`Failed to change folder: ${e}`, "error");
     }
   }
 
@@ -175,7 +187,7 @@
     currentSavePath.set(null);
     currentEngine.set(null);
     currentGameDir.set(null);
-    goto('/');
+    goto("/");
   }
 </script>
 
@@ -184,11 +196,11 @@
   <aside class="sidebar">
     <div class="sidebar-header">
       <button class="btn-back" onclick={goBack}>← Back</button>
-      <h2 class="sidebar-title">{engine?.name || 'Editor'}</h2>
+      <h2 class="sidebar-title">{engine?.name || "Editor"}</h2>
     </div>
 
     <div class="save-list">
-      {#each saveList as sf}
+      {#each saveList as sf (sf.path)}
         <button
           class="save-item"
           class:active={savePath === sf.path}
@@ -207,7 +219,7 @@
 
     {#if engine?.save_dir_hint}
       <div class="change-folder-section">
-        <button class="change-folder-btn" onclick={() => showFlashPicker = true}>
+        <button class="change-folder-btn" onclick={() => (showFlashPicker = true)}>
           📁 Change folder
         </button>
       </div>
@@ -215,12 +227,8 @@
 
     {#if engine?.supports_debug}
       <div class="debug-section">
-        <button
-          class="debug-toggle"
-          class:active={!!patch}
-          onclick={handleDebugToggle}
-        >
-          {patch ? '🔧 Revert Debug Mode' : '🔧 Enable Debug Mode'}
+        <button class="debug-toggle" class:active={!!patch} onclick={handleDebugToggle}>
+          {patch ? "🔧 Revert Debug Mode" : "🔧 Enable Debug Mode"}
         </button>
       </div>
     {/if}
@@ -248,17 +256,17 @@
         <span class="loading-text">Loading save...</span>
       </div>
     {:else if save}
-      {#if engine?.id === 'sqlite'}
+      {#if engine?.id === "sqlite"}
         <TableBrowser tables={save.raw} />
       {:else}
         <!-- Toolbar -->
         <div class="toolbar">
           <div class="tab-bar">
-            {#each tabs as tab}
+            {#each tabs as tab (tab.id)}
               <button
                 class="tab"
                 class:active={activeTab === tab.id}
-                onclick={() => activeTab = tab.id}
+                onclick={() => (activeTab = tab.id)}
               >
                 {tab.label}
               </button>
@@ -274,16 +282,16 @@
 
         <!-- Tab content -->
         <div class="tab-content">
-          {#if activeTab === 'party' && (save.party || save.currency)}
+          {#if activeTab === "party" && (save.party || save.currency)}
             <PartyTab party={save.party ?? []} currency={save.currency} nameMap={names} />
-          {:else if activeTab === 'inventory' && save.inventory}
+          {:else if activeTab === "inventory" && save.inventory}
             <InventoryTab inventory={save.inventory} />
-          {:else if activeTab === 'variables' && save.variables}
+          {:else if activeTab === "variables" && save.variables}
             <VariablesTab variables={save.variables} />
-          {:else if activeTab === 'switches' && save.switches}
+          {:else if activeTab === "switches" && save.switches}
             <SwitchesTab switches={save.switches} />
-          {:else if activeTab === 'raw'}
-            <RawTab data={save.raw} engineId={engine?.id || ''} />
+          {:else if activeTab === "raw"}
+            <RawTab data={save.raw} engineId={engine?.id || ""} />
           {/if}
         </div>
       {/if}
@@ -297,30 +305,46 @@
 
   <!-- Diff modal -->
   {#if showDiff}
-    <DiffView entries={diffEntries} onclose={() => showDiff = false} />
+    <DiffView entries={diffEntries} onclose={() => (showDiff = false)} />
   {/if}
 
   <!-- Backups modal -->
   {#if showBackups}
-    <div class="modal-overlay" role="button" tabindex="-1" onclick={() => showBackups = false} onkeydown={(e) => { if (e.key === 'Escape') showBackups = false; }}>
-      <div class="modal" role="dialog" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+    <div
+      class="modal-overlay"
+      role="button"
+      tabindex="-1"
+      onclick={() => (showBackups = false)}
+      onkeydown={(e) => {
+        if (e.key === "Escape") showBackups = false;
+      }}
+    >
+      <div
+        class="modal"
+        role="dialog"
+        tabindex="-1"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
         <h3>Backups</h3>
         {#if backups.length === 0}
           <p class="no-data">No backups found</p>
         {:else}
           <div class="backup-list">
-            {#each backups as backup}
+            {#each backups as backup (backup.path)}
               <div class="backup-item">
                 <div>
                   <div class="backup-name">{backup.name}</div>
-                  <div class="backup-meta">{new Date(backup.modified).toLocaleString()} — {(backup.size / 1024).toFixed(0)} KB</div>
+                  <div class="backup-meta">
+                    {new Date(backup.modified).toLocaleString()} — {(backup.size / 1024).toFixed(0)} KB
+                  </div>
                 </div>
                 <button class="btn-primary" onclick={() => restoreBackup(backup)}>Restore</button>
               </div>
             {/each}
           </div>
         {/if}
-        <button onclick={() => showBackups = false}>Close</button>
+        <button onclick={() => (showBackups = false)}>Close</button>
       </div>
     </div>
   {/if}
@@ -328,23 +352,48 @@
   {#if showFlashPicker && engine}
     {@const pickerConfig = (() => {
       switch (engine.id) {
-        case 'flash':
-          return { extension: 'sol', defaultDir: '%APPDATA%/Macromedia/Flash Player/#SharedObjects' as string | null, badgeColor: '#f44336', title: 'Select Flash Save Folder' };
-        case 'unreal-engine':
-          return { extension: 'sav', defaultDir: '%LOCALAPPDATA%' as string | null, badgeColor: '#1565c0', title: 'Select Unreal Save Folder' };
-        case 'sugarcube':
-          return { extension: 'save', defaultDir: '%USERPROFILE%/Downloads' as string | null, badgeColor: '#8b5cf6', title: 'Select SugarCube Save Folder' };
-        case 'unity':
-          return { extension: 'json', defaultDir: '%LOCALAPPDATA%Low' as string | null, badgeColor: '#222c37', title: 'Select Unity Save Folder' };
+        case "flash":
+          return {
+            extension: "sol",
+            defaultDir: "%APPDATA%/Macromedia/Flash Player/#SharedObjects" as string | null,
+            badgeColor: "#f44336",
+            title: "Select Flash Save Folder",
+          };
+        case "unreal-engine":
+          return {
+            extension: "sav",
+            defaultDir: "%LOCALAPPDATA%" as string | null,
+            badgeColor: "#1565c0",
+            title: "Select Unreal Save Folder",
+          };
+        case "sugarcube":
+          return {
+            extension: "save",
+            defaultDir: "%USERPROFILE%/Downloads" as string | null,
+            badgeColor: "#8b5cf6",
+            title: "Select SugarCube Save Folder",
+          };
+        case "unity":
+          return {
+            extension: "json",
+            defaultDir: "%LOCALAPPDATA%Low" as string | null,
+            badgeColor: "#222c37",
+            title: "Select Unity Save Folder",
+          };
         default:
-          return { extension: 'sav', defaultDir: null as string | null, badgeColor: '#6c5ce7', title: 'Select Save Folder' };
+          return {
+            extension: "sav",
+            defaultDir: null as string | null,
+            badgeColor: "#6c5ce7",
+            title: "Select Save Folder",
+          };
       }
     })()}
     <SaveFolderPicker
       onselect={changeFlashFolder}
-      oncancel={() => showFlashPicker = false}
+      oncancel={() => (showFlashPicker = false)}
       title={pickerConfig.title}
-      hint={engine.save_dir_hint ?? 'Navigate to the folder containing your save files.'}
+      hint={engine.save_dir_hint ?? "Navigate to the folder containing your save files."}
       extension={pickerConfig.extension}
       defaultDir={pickerConfig.defaultDir}
       badgeColor={pickerConfig.badgeColor}
@@ -380,7 +429,9 @@
     border: none;
     color: var(--text-secondary);
   }
-  .btn-back:hover { color: var(--text-primary); }
+  .btn-back:hover {
+    color: var(--text-primary);
+  }
 
   .sidebar-title {
     font-size: 15px;
@@ -402,16 +453,30 @@
     background: transparent;
     border: 1px solid transparent;
   }
-  .save-item:hover { background: var(--bg-hover); }
+  .save-item:hover {
+    background: var(--bg-hover);
+  }
   .save-item.active {
     background: var(--bg-tertiary);
     border-color: var(--accent-primary);
   }
 
-  .save-name { font-size: 13px; font-weight: 500; }
-  .save-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .save-name {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .save-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
 
-  .no-saves { padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
+  .no-saves {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
 
   .change-folder-section {
     padding: 8px 12px;
@@ -481,7 +546,10 @@
     border-bottom: none;
     color: var(--text-secondary);
   }
-  .tab:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+  .tab:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+  }
   .tab.active {
     background: var(--bg-primary);
     color: var(--accent-primary);
@@ -544,13 +612,24 @@
     animation: pulse 1.5s ease-in-out infinite;
   }
 
-  .skeleton-line.wide { width: 90%; }
-  .skeleton-line.medium { width: 60%; }
-  .skeleton-line.short { width: 35%; }
+  .skeleton-line.wide {
+    width: 90%;
+  }
+  .skeleton-line.medium {
+    width: 60%;
+  }
+  .skeleton-line.short {
+    width: 35%;
+  }
 
   @keyframes pulse {
-    0%, 100% { opacity: 0.4; }
-    50% { opacity: 0.8; }
+    0%,
+    100% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 0.8;
+    }
   }
 
   .empty-state {
@@ -562,8 +641,13 @@
     color: var(--text-muted);
   }
 
-  .empty-icon { font-size: 48px; margin-bottom: 12px; }
-  .empty-text { font-size: 16px; }
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+  .empty-text {
+    font-size: 16px;
+  }
 
   .modal-overlay {
     position: fixed;
@@ -586,10 +670,21 @@
     overflow-y: auto;
   }
 
-  .modal h3 { margin-bottom: 16px; }
-  .no-data { color: var(--text-muted); padding: 16px; text-align: center; }
+  .modal h3 {
+    margin-bottom: 16px;
+  }
+  .no-data {
+    color: var(--text-muted);
+    padding: 16px;
+    text-align: center;
+  }
 
-  .backup-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .backup-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
 
   .backup-item {
     display: flex;
@@ -600,6 +695,12 @@
     border-radius: var(--radius);
   }
 
-  .backup-name { font-size: 13px; font-weight: 500; }
-  .backup-meta { font-size: 11px; color: var(--text-muted); }
+  .backup-name {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .backup-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
 </style>

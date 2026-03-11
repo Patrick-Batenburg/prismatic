@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { api, type SaveDirEntry, type ScanProgressEvent } from '$lib/api';
-  import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+  import { api, type SaveDirEntry, type ScanProgressEvent } from "$lib/api";
+  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
   let {
     onselect,
     oncancel,
-    title = 'Select Save Folder',
-    hint = 'Navigate to the folder containing your save files.',
-    extension = 'sav',
+    title = "Select Save Folder",
+    hint = "Navigate to the folder containing your save files.",
+    extension = "sav",
     defaultDir = null as string | null,
-    badgeColor = '#6c5ce7',
+    badgeColor = "#6c5ce7",
   }: {
     onselect: (path: string) => void;
     oncancel: () => void;
@@ -20,11 +20,11 @@
     badgeColor?: string;
   } = $props();
 
-  let currentPath = $state('');
+  let currentPath = $state("");
   let entries = $state<SaveDirEntry[]>([]);
   let loading = $state(true);
-  let error = $state('');
-  let pathInput = $state('');
+  let error = $state("");
+  let pathInput = $state("");
   let deepScan = $state(false);
   let scanning = $state(false);
   let scanProgress = $state({ done: 0, total: 0 });
@@ -32,7 +32,7 @@
   let unlistenProgress: UnlistenFn | null = null;
   let unlistenComplete: UnlistenFn | null = null;
 
-  let filesHere = $derived(entries.filter(e => !e.is_dir).length);
+  let filesHere = $derived(entries.filter((e) => !e.is_dir).length);
 
   $effect(() => {
     browse();
@@ -50,7 +50,7 @@
 
   async function browse(dir?: string) {
     loading = true;
-    error = '';
+    error = "";
     scanning = false;
     cleanupListeners();
     try {
@@ -62,8 +62,8 @@
       if (deepScan) {
         startDeepScan();
       }
-    } catch (e) {
-      error = String(e);
+    } catch (_e) {
+      error = String(_e);
     } finally {
       loading = false;
     }
@@ -74,23 +74,21 @@
     scanning = true;
     scanProgress = { done: 0, total: 0 };
 
-    unlistenProgress = await listen<ScanProgressEvent>('scan-progress', (event) => {
+    unlistenProgress = await listen<ScanProgressEvent>("scan-progress", (event) => {
       const { path, file_count, folders_done, folders_total } = event.payload;
       scanProgress = { done: folders_done, total: folders_total };
 
-      entries = entries.map(e =>
-        e.is_dir && e.path === path ? { ...e, file_count } : e
-      );
+      entries = entries.map((e) => (e.is_dir && e.path === path ? { ...e, file_count } : e));
     });
 
-    unlistenComplete = await listen('scan-complete', () => {
+    unlistenComplete = await listen("scan-complete", () => {
       scanning = false;
       cleanupListeners();
     });
 
     try {
       await api.deepScanDir(currentPath, extension);
-    } catch (e) {
+    } catch {
       scanning = false;
       cleanupListeners();
     }
@@ -107,7 +105,7 @@
   }
 
   function navigateUp() {
-    const parent = currentPath.replace(/[\\/][^\\/]+$/, '');
+    const parent = currentPath.replace(/[\\/][^\\/]+$/, "");
     if (parent && parent !== currentPath) {
       browse(parent);
     }
@@ -143,23 +141,36 @@
   }
 </script>
 
-<div class="modal-overlay" role="button" tabindex="-1" onclick={oncancel} onkeydown={(e) => { if (e.key === 'Escape') oncancel(); }}>
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <div class="modal" role="dialog" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+<div
+  class="modal-overlay"
+  role="button"
+  tabindex="-1"
+  onclick={oncancel}
+  onkeydown={(e) => {
+    if (e.key === "Escape") oncancel();
+  }}
+>
+  <div
+    class="modal"
+    role="dialog"
+    tabindex="-1"
+    onclick={(e) => e.stopPropagation()}
+    onkeydown={(e) => e.stopPropagation()}
+  >
     <div class="modal-header">
       <h3>{title}</h3>
       <p class="hint">{hint} Look for <code>.{extension}</code> files.</p>
     </div>
 
     <div class="path-bar">
-      <button class="btn-up" onclick={navigateUp} title="Go up">
-        ..
-      </button>
+      <button class="btn-up" onclick={navigateUp} title="Go up"> .. </button>
       <input
         class="path-input"
         type="text"
         bind:value={pathInput}
-        onkeydown={(e) => { if (e.key === 'Enter') handlePathSubmit(); }}
+        onkeydown={(e) => {
+          if (e.key === "Enter") handlePathSubmit();
+        }}
       />
       <button class="btn-go" onclick={handlePathSubmit}>Go</button>
       {#if import.meta.env.DEV}
@@ -169,14 +180,21 @@
         class="btn-deep"
         class:active={deepScan}
         onclick={toggleDeepScan}
-        title={deepScan ? 'Switch to shallow scan (immediate files only)' : 'Deep scan (count files in all subfolders)'}
+        title={deepScan
+          ? "Switch to shallow scan (immediate files only)"
+          : "Deep scan (count files in all subfolders)"}
       >
-        {deepScan ? '🔍' : '📁'}
+        {deepScan ? "🔍" : "📁"}
       </button>
     </div>
 
     <div class="scan-bar" class:visible={scanning}>
-      <div class="scan-progress" style="width: {scanProgress.total > 0 ? (scanProgress.done / scanProgress.total * 100) : 0}%"></div>
+      <div
+        class="scan-progress"
+        style="width: {scanProgress.total > 0
+          ? (scanProgress.done / scanProgress.total) * 100
+          : 0}%"
+      ></div>
       <span class="scan-text">Scanning {scanProgress.done}/{scanProgress.total} folders...</span>
     </div>
 
@@ -186,13 +204,17 @@
       <div class="error-state">{error}</div>
     {:else}
       <div class="file-list">
-        {#each entries as entry}
+        {#each entries as entry (entry.path)}
           {#if entry.is_dir}
             <button class="file-entry dir" onclick={() => navigateTo(entry)}>
               <span class="entry-icon">📁</span>
               <span class="entry-name">{entry.name}</span>
               {#if entry.file_count > 0}
-                <span class="file-badge" style="background: color-mix(in srgb, {badgeColor} 15%, transparent); color: {badgeColor};">{entry.file_count} .{extension}</span>
+                <span
+                  class="file-badge"
+                  style="background: color-mix(in srgb, {badgeColor} 15%, transparent); color: {badgeColor};"
+                  >{entry.file_count} .{extension}</span
+                >
               {/if}
             </button>
           {:else}
@@ -210,7 +232,9 @@
 
     <div class="modal-footer">
       {#if filesHere > 0}
-        <span class="file-info" style="color: {badgeColor};">{filesHere} .{extension} file{filesHere !== 1 ? 's' : ''} in this folder</span>
+        <span class="file-info" style="color: {badgeColor};"
+          >{filesHere} .{extension} file{filesHere !== 1 ? "s" : ""} in this folder</span
+        >
       {/if}
       <div class="footer-actions">
         <button onclick={oncancel}>Cancel</button>
@@ -218,7 +242,7 @@
           class="btn-primary"
           disabled={filesHere === 0}
           onclick={selectCurrent}
-          title={filesHere === 0 ? `Navigate to a folder containing .${extension} files` : ''}
+          title={filesHere === 0 ? `Navigate to a folder containing .${extension} files` : ""}
         >
           Select this folder
         </button>
@@ -427,7 +451,9 @@
     color: var(--text-muted);
   }
 
-  .loading-state, .error-state, .empty {
+  .loading-state,
+  .error-state,
+  .empty {
     padding: 32px;
     text-align: center;
     color: var(--text-muted);

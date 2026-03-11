@@ -1,12 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { api, type EngineInfo } from "$lib/api";
-  import {
-    currentEngine,
-    currentGameDir,
-    statusMessage,
-    addToast,
-  } from "$lib/stores";
+  import { currentEngine, currentGameDir, statusMessage, addToast } from "$lib/stores";
   import SaveFolderPicker from "$lib/components/SaveFolderPicker.svelte";
 
   let engines = $state<EngineInfo[]>([]);
@@ -59,9 +54,7 @@
       case "flash":
         return {
           extension: "sol",
-          defaultDir: "%APPDATA%/Macromedia/Flash Player/#SharedObjects" as
-            | string
-            | null,
+          defaultDir: "%APPDATA%/Macromedia/Flash Player/#SharedObjects" as string | null,
           badgeColor: "#f44336",
           title: "Select Flash Save Folder",
         };
@@ -155,10 +148,7 @@
 
       const detected = await api.detectEngine(gameDir);
       if (!detected) {
-        addToast(
-          "Could not auto-detect engine. Try selecting one manually.",
-          "error"
-        );
+        addToast("Could not auto-detect engine. Try selecting one manually.", "error");
         detectingFolder = false;
         return;
       }
@@ -196,11 +186,10 @@
         });
         if (!selected) return;
         const filePath =
-          (selected as { path: string }).path ?? (selected as string);
-        const lastSep = Math.max(
-          filePath.lastIndexOf("/"),
-          filePath.lastIndexOf("\\")
-        );
+          typeof selected === "object" && selected !== null && "path" in selected
+            ? (selected as { path: string }).path
+            : (selected as string);
+        const lastSep = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
         const gameDir = lastSep > 0 ? filePath.substring(0, lastSep) : filePath;
         await finishSetup(engine, gameDir);
         return;
@@ -251,20 +240,21 @@
         <div class="engine-name">
           {detectingFolder ? "Detecting..." : "Auto-Detect"}
         </div>
-        <div class="engine-desc">
-          Select a game folder and automatically detect the engine
-        </div>
+        <div class="engine-desc">Select a game folder and automatically detect the engine</div>
       </button>
-      {#each engines as engine}
+      {#each engines as engine (engine.id)}
         <button
           class="engine-card"
           style="--engine-color: {engineColors[engine.id] || '#6c5ce7'}"
           onclick={() => selectEngine(engine)}
         >
-          <div class="engine-icon" class:engine-icon-banner={engine.id === 'wolf-rpg-editor' || engine.id === 'pixel-game-maker-mv'}>
+          <div
+            class="engine-icon"
+            class:engine-icon-banner={engine.id === "wolf-rpg-editor" ||
+              engine.id === "pixel-game-maker-mv"}
+          >
             {#if logoFailed[engine.id]}
-              <span class="engine-emoji">{engineEmojis[engine.id] || "🎲"}</span
-              >
+              <span class="engine-emoji">{engineEmojis[engine.id] || "🎲"}</span>
             {:else}
               <img
                 src="/engines/{engineIconKey[engine.id] || engine.id}.svg"
@@ -277,10 +267,7 @@
           <div class="engine-desc">{engine.description}</div>
           <div class="engine-meta">
             {#if engine.supports_debug}
-              <span
-                class="badge"
-                style="background: var(--success); color: white;"
-                >Debug Mode</span
+              <span class="badge" style="background: var(--success); color: white;">Debug Mode</span
               >
             {/if}
             <span
@@ -293,7 +280,7 @@
           {#if engine.supports_debug && debugInfo[engine.id]}
             <div class="debug-details">
               <div class="debug-keys">
-                {#each debugInfo[engine.id].keys as key}
+                {#each debugInfo[engine.id].keys as key (key)}
                   <span class="debug-key">{key}</span>
                 {/each}
               </div>
@@ -312,8 +299,7 @@
     onselect={onFlashSaveSelected}
     oncancel={() => (flashPickerEngine = null)}
     title={pickerConfig.title}
-    hint={flashPickerEngine.save_dir_hint ??
-      "Navigate to the folder containing your save files."}
+    hint={flashPickerEngine.save_dir_hint ?? "Navigate to the folder containing your save files."}
     extension={pickerConfig.extension}
     defaultDir={pickerConfig.defaultDir}
     badgeColor={pickerConfig.badgeColor}

@@ -1,22 +1,22 @@
 <script lang="ts">
-  import JsonNode from './JsonNode.svelte';
+  import JsonNode from "./JsonNode.svelte";
 
   let {
     key,
     value,
     depth = 0,
-    search = '',
+    search = "",
     expandAll = false,
     matchCount = $bindable(0),
-    filterFn = undefined as ((key: string, value: any) => boolean) | undefined
+    filterFn = undefined as ((key: string, value: unknown) => boolean) | undefined,
   }: {
     key: string;
-    value: any;
+    value: unknown;
     depth?: number;
     search?: string;
     expandAll?: boolean;
     matchCount?: number;
-    filterFn?: ((key: string, value: any) => boolean) | undefined;
+    filterFn?: ((key: string, value: unknown) => boolean) | undefined;
   } = $props();
 
   // Capture initial depth (not reactive — intentional, depth is fixed per instance)
@@ -24,7 +24,7 @@
   const initialDepth = depth;
   let expanded = $state(initialDepth < 1);
   let editing = $state(false);
-  let editValue = $state('');
+  let editValue = $state("");
 
   // React to expandAll changes
   $effect(() => {
@@ -32,15 +32,15 @@
     if (!expandAll && initialDepth > 0) expanded = false;
   });
 
-  let isObject = $derived(value !== null && typeof value === 'object' && !Array.isArray(value));
+  let isObject = $derived(value !== null && typeof value === "object" && !Array.isArray(value));
   let isArray = $derived(Array.isArray(value));
   let isExpandable = $derived(isObject || isArray);
 
   let childEntries = $derived.by(() => {
-    let entries: [string, any][] = isObject
-      ? Object.entries(value)
+    let entries: [string, unknown][] = isObject
+      ? Object.entries(value as Record<string, unknown>)
       : isArray
-        ? value.map((v: any, i: number) => [String(i), v])
+        ? (value as unknown[]).map((v, i) => [String(i), v])
         : [];
     if (filterFn) {
       entries = entries.filter(([k, v]) => filterFn!(k, v));
@@ -51,12 +51,15 @@
   let childCount = $derived(childEntries.length);
 
   // Search match — only check this node's key/value, not descendants
-  let isMatch = $derived((() => {
-    if (!search) return false;
-    const q = search.toLowerCase();
-    return key.toLowerCase().includes(q) ||
-      (!isExpandable && String(value).toLowerCase().includes(q));
-  })());
+  let isMatch = $derived(
+    (() => {
+      if (!search) return false;
+      const q = search.toLowerCase();
+      return (
+        key.toLowerCase().includes(q) || (!isExpandable && String(value).toLowerCase().includes(q))
+      );
+    })(),
+  );
 
   // When searching, auto-expand nodes that contain matches
   let hasDescendantMatch = $derived.by(() => {
@@ -75,7 +78,7 @@
       // Always show if key matches
       if (k.toLowerCase().includes(q)) return true;
       // For primitives, check value
-      if (v === null || typeof v !== 'object') {
+      if (v === null || typeof v !== "object") {
         return String(v).toLowerCase().includes(q);
       }
       // For objects/arrays, do a quick string check
@@ -90,22 +93,22 @@
     }
   });
 
-  function valueColor(val: any): string {
-    if (val === null) return 'var(--text-muted)';
-    if (typeof val === 'string') return '#ce93d8';
-    if (typeof val === 'number') return '#4fc3f7';
-    if (typeof val === 'boolean') return val ? 'var(--success)' : 'var(--danger)';
-    return 'var(--text-primary)';
+  function valueColor(val: unknown): string {
+    if (val === null) return "var(--text-muted)";
+    if (typeof val === "string") return "#ce93d8";
+    if (typeof val === "number") return "#4fc3f7";
+    if (typeof val === "boolean") return val ? "var(--success)" : "var(--danger)";
+    return "var(--text-primary)";
   }
 
-  function formatValue(val: any): string {
-    if (val === null) return 'null';
-    if (typeof val === 'string') return `"${val}"`;
+  function formatValue(val: unknown): string {
+    if (val === null) return "null";
+    if (typeof val === "string") return `"${val}"`;
     return String(val);
   }
 
   function startEdit() {
-    editValue = typeof value === 'string' ? value : JSON.stringify(value);
+    editValue = typeof value === "string" ? value : JSON.stringify(value);
     editing = true;
   }
 
@@ -121,26 +124,35 @@
 
 <div class="node" class:match={isMatch} style="padding-left: {depth * 16}px">
   {#if isExpandable}
-    <button class="toggle" onclick={() => expanded = !expanded}>
-      {expanded ? '▼' : '▶'}
+    <button class="toggle" onclick={() => (expanded = !expanded)}>
+      {expanded ? "▼" : "▶"}
     </button>
     <span class="key">{key}</span>
-    <span class="bracket">{isArray ? '[' : '{'}</span>
+    <span class="bracket">{isArray ? "[" : "{"}</span>
     {#if !expanded}
-      <span class="collapsed-hint">{childCount} {isArray ? 'items' : 'keys'}</span>
-      <span class="bracket">{isArray ? ']' : '}'}</span>
+      <span class="collapsed-hint">{childCount} {isArray ? "items" : "keys"}</span>
+      <span class="bracket">{isArray ? "]" : "}"}</span>
     {/if}
   {:else}
     <span class="spacer"></span>
     <span class="key">{key}:</span>
     {#if editing}
-      <input class="edit-input" bind:value={editValue}
+      <input
+        class="edit-input"
+        bind:value={editValue}
         onblur={commitEdit}
-        onkeydown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') editing = false; }}
+        onkeydown={(e) => {
+          if (e.key === "Enter") commitEdit();
+          if (e.key === "Escape") editing = false;
+        }}
       />
     {:else}
-      <button class="value" style="color: {valueColor(value)}" ondblclick={startEdit}
-        title="Double-click to edit">
+      <button
+        class="value"
+        style="color: {valueColor(value)}"
+        ondblclick={startEdit}
+        title="Double-click to edit"
+      >
         {formatValue(value)}
       </button>
     {/if}
@@ -161,7 +173,7 @@
   {/each}
   <div class="node" style="padding-left: {depth * 16}px">
     <span class="spacer"></span>
-    <span class="bracket">{isArray ? ']' : '}'}</span>
+    <span class="bracket">{isArray ? "]" : "}"}</span>
   </div>
 {/if}
 
@@ -193,9 +205,14 @@
     justify-content: center;
     flex-shrink: 0;
   }
-  .toggle:hover { color: var(--text-primary); }
+  .toggle:hover {
+    color: var(--text-primary);
+  }
 
-  .spacer { width: 16px; flex-shrink: 0; }
+  .spacer {
+    width: 16px;
+    flex-shrink: 0;
+  }
 
   .key {
     color: #81d4fa;
@@ -215,7 +232,9 @@
     text-decoration: underline dotted;
   }
 
-  .bracket { color: var(--text-muted); }
+  .bracket {
+    color: var(--text-muted);
+  }
 
   .collapsed-hint {
     color: var(--text-muted);

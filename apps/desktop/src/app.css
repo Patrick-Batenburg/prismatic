@@ -31,7 +31,7 @@
 
   --transition: 0.2s ease;
 
-  font-family: 'Segoe UI', Inter, system-ui, sans-serif;
+  font-family: "Segoe UI", Inter, system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: var(--text-primary);
@@ -41,7 +41,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -67,7 +69,9 @@ body {
   background: var(--accent-primary);
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -78,7 +82,9 @@ input, select, textarea {
   outline: none;
   transition: border-color var(--transition);
 }
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 2px var(--accent-glow);
 }

@@ -1,8 +1,8 @@
-/// Custom pickle protocol 2 parser for Ren'Py save files.
-///
-/// serde-pickle can't handle Ren'Py saves because it replaces unknown globals
-/// with empty dicts, but RevertableList/RevertableSet are list/set subclasses
-/// that need APPENDS to work. This parser handles those types natively.
+//! Custom pickle protocol 2 parser for Ren'Py save files.
+//!
+//! serde-pickle can't handle Ren'Py saves because it replaces unknown globals
+//! with empty dicts, but RevertableList/RevertableSet are list/set subclasses
+//! that need APPENDS to work. This parser handles those types natively.
 
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
@@ -89,7 +89,7 @@ enum PVal {
 }
 
 impl PVal {
-    fn to_json(self) -> Value {
+    fn into_json(self) -> Value {
         match self {
             PVal::None => Value::Null,
             PVal::Bool(b) => Value::Bool(b),
@@ -110,7 +110,7 @@ impl PVal {
                 }
             }
             PVal::List(items) | PVal::Tuple(items) | PVal::Set(items) => {
-                Value::Array(items.into_iter().map(|v| v.to_json()).collect())
+                Value::Array(items.into_iter().map(|v| v.into_json()).collect())
             }
             PVal::Dict(pairs) => {
                 let mut map = Map::new();
@@ -124,7 +124,7 @@ impl PVal {
                         PVal::None => "None".to_string(),
                         other => format!("{:?}", other),
                     };
-                    map.insert(key, v.to_json());
+                    map.insert(key, v.into_json());
                 }
                 Value::Object(map)
             }
@@ -141,7 +141,7 @@ impl PVal {
                                 PVal::Int(n) => n.to_string(),
                                 other => format!("{:?}", other),
                             };
-                            map.insert(key, v.to_json());
+                            map.insert(key, v.into_json());
                         }
                         Value::Object(map)
                     }
@@ -153,7 +153,7 @@ impl PVal {
                     other => {
                         let mut map = Map::new();
                         map.insert("__class__".into(), Value::String(class_name));
-                        map.insert("__state__".into(), other.to_json());
+                        map.insert("__state__".into(), other.into_json());
                         Value::Object(map)
                     }
                 }
@@ -788,5 +788,5 @@ impl<'a> PickleVM<'a> {
 pub fn parse_pickle(data: &[u8]) -> Result<Value, String> {
     let vm = PickleVM::new(data);
     let result = vm.execute()?;
-    Ok(result.to_json())
+    Ok(result.into_json())
 }

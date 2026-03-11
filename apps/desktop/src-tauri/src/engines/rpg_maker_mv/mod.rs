@@ -57,6 +57,7 @@ impl RpgMakerMvPlugin {
     }
 
     /// Extract structured data from raw RPG Maker MV save JSON
+    #[allow(clippy::type_complexity)]
     fn extract_structured(
         raw: &serde_json::Value,
         name_map: &NameMap,

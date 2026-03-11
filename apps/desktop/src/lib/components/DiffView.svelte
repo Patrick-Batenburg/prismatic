@@ -1,22 +1,39 @@
 <script lang="ts">
-  import type { DiffEntry } from '$lib/api';
+  import type { DiffEntry } from "$lib/api";
 
   let { entries, onclose }: { entries: DiffEntry[]; onclose: () => void } = $props();
-  let search = $state('');
+  let search = $state("");
 
-  let filtered = $derived((() => {
-    if (!search) return entries;
-    const q = search.toLowerCase();
-    return entries.filter(e =>
-      e.path.toLowerCase().includes(q) ||
-      JSON.stringify(e.old_value).toLowerCase().includes(q) ||
-      JSON.stringify(e.new_value).toLowerCase().includes(q)
-    );
-  })());
+  let filtered = $derived(
+    (() => {
+      if (!search) return entries;
+      const q = search.toLowerCase();
+      return entries.filter(
+        (e) =>
+          e.path.toLowerCase().includes(q) ||
+          JSON.stringify(e.old_value).toLowerCase().includes(q) ||
+          JSON.stringify(e.new_value).toLowerCase().includes(q),
+      );
+    })(),
+  );
 </script>
 
-<div class="modal-overlay" role="button" tabindex="-1" onclick={onclose} onkeydown={(e) => { if (e.key === 'Escape') onclose(); }}>
-  <div class="diff-modal" role="dialog" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+<div
+  class="modal-overlay"
+  role="button"
+  tabindex="-1"
+  onclick={onclose}
+  onkeydown={(e) => {
+    if (e.key === "Escape") onclose();
+  }}
+>
+  <div
+    class="diff-modal"
+    role="dialog"
+    tabindex="-1"
+    onclick={(e) => e.stopPropagation()}
+    onkeydown={(e) => e.stopPropagation()}
+  >
     <div class="diff-header">
       <h3>Changes Detected ({entries.length})</h3>
       <input type="text" placeholder="Filter changes..." bind:value={search} class="search-input" />
@@ -24,8 +41,9 @@
     </div>
 
     <div class="diff-list">
-      {#each filtered as entry}
-        <div class="diff-entry"
+      {#each filtered as entry (entry.path)}
+        <div
+          class="diff-entry"
           class:added={entry.old_value === null}
           class:removed={entry.new_value === null}
           class:changed={entry.old_value !== null && entry.new_value !== null}
@@ -80,8 +98,13 @@
     border-bottom: 1px solid var(--border);
   }
 
-  .diff-header h3 { flex: 1; font-size: 16px; }
-  .search-input { width: 200px; }
+  .diff-header h3 {
+    flex: 1;
+    font-size: 16px;
+  }
+  .search-input {
+    width: 200px;
+  }
 
   .diff-list {
     overflow-y: auto;
@@ -96,9 +119,15 @@
     background: var(--bg-tertiary);
   }
 
-  .diff-entry.added { border-left-color: var(--success); }
-  .diff-entry.removed { border-left-color: var(--danger); }
-  .diff-entry.changed { border-left-color: var(--warning); }
+  .diff-entry.added {
+    border-left-color: var(--success);
+  }
+  .diff-entry.removed {
+    border-left-color: var(--danger);
+  }
+  .diff-entry.changed {
+    border-left-color: var(--warning);
+  }
 
   .diff-path {
     font-family: monospace;
@@ -115,9 +144,15 @@
     font-size: 13px;
   }
 
-  .old-val { color: var(--danger); }
-  .new-val { color: var(--success); }
-  .arrow { color: var(--text-muted); }
+  .old-val {
+    color: var(--danger);
+  }
+  .new-val {
+    color: var(--success);
+  }
+  .arrow {
+    color: var(--text-muted);
+  }
 
   .no-changes {
     padding: 20px;

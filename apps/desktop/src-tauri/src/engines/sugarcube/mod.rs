@@ -24,10 +24,10 @@ impl EnginePlugin for SugarCubePlugin {
         if let Ok(entries) = std::fs::read_dir(game_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().map(|e| e == "save").unwrap_or(false) {
-                    if is_sugarcube_save(&path) {
-                        return true;
-                    }
+                if path.extension().map(|e| e == "save").unwrap_or(false)
+                    && is_sugarcube_save(&path)
+                {
+                    return true;
                 }
             }
         }

@@ -1,7 +1,7 @@
-/// VariableDatabase parser for Wolf RPG Editor save files.
-///
-/// The VariableDatabase stores all game variables organized into "types" (tables),
-/// each containing entries (rows) with fields that are either integers or strings.
+//! VariableDatabase parser for Wolf RPG Editor save files.
+//!
+//! The VariableDatabase stores all game variables organized into "types" (tables),
+//! each containing entries (rows) with fields that are either integers or strings.
 
 use super::reader::FileWalker;
 

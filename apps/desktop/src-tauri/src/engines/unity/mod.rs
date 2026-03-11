@@ -214,11 +214,7 @@ fn xml_to_json(xml_content: &str) -> Result<serde_json::Value, String> {
                 let text = e.unescape().map_err(|err| format!("XML text error: {err}"))?.to_string();
                 if !text.is_empty() {
                     if let Some(current) = stack.last_mut() {
-                        if current.1.is_empty() {
-                            current.1.insert("#text".to_string(), Value::String(text));
-                        } else {
-                            current.1.insert("#text".to_string(), Value::String(text));
-                        }
+                        current.1.insert("#text".to_string(), Value::String(text));
                     }
                 }
             }

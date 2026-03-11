@@ -1,8 +1,8 @@
-/// Binary cursor for reading sequential fields from Wolf RPG Editor save data,
-/// plus functions to skip each SavePart structure.
-///
-/// Translated from the C++ WolfSave project by Sinflower:
-/// https://github.com/Sinflower/WolfSave
+//! Binary cursor for reading sequential fields from Wolf RPG Editor save data,
+//! plus functions to skip each SavePart structure.
+//!
+//! Translated from the C++ WolfSave project by Sinflower:
+//! https://github.com/Sinflower/WolfSave
 
 // ---------------------------------------------------------------------------
 // FileWalker

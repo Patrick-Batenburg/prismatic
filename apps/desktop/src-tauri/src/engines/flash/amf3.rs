@@ -174,7 +174,7 @@ impl<'a> AmfReader<'a> {
                 // AMF3 Date: U29 ref/inline, then f64 millis
                 let ref_or_inline = self.read_u29()?;
                 if ref_or_inline & 1 == 0 {
-                    return Err(format!("date reference not supported"));
+                    return Err("date reference not supported".to_string());
                 }
                 self.object_table.push(());
                 let ms = self.read_f64_be()?;

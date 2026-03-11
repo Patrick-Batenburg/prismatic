@@ -116,7 +116,7 @@ impl CipherMode {
 
 /// CBC decrypt
 fn cbc_decrypt(cipher: &CipherMode, iv: &[u8; 16], ciphertext: &[u8]) -> Result<Vec<u8>, String> {
-    if ciphertext.len() % 16 != 0 {
+    if !ciphertext.len().is_multiple_of(16) {
         return Err("Ciphertext length must be multiple of 16".into());
     }
 
