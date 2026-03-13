@@ -173,6 +173,7 @@ export const api = {
   listSaves: () => invoke<SaveFile[]>("list_saves"),
   loadSave: (savePath: string) => invoke<SaveData>("load_save", { savePath }),
   saveFile: (savePath: string, data: SaveData) => invoke<string>("save_file", { savePath, data }),
+  compareSave: (comparePath: string) => invoke<SaveData>("compare_save", { comparePath }),
   getNames: () => invoke<NameMap>("get_names"),
   getDiff: (savePath: string) => invoke<DiffEntry[]>("get_diff", { savePath }),
   listBackups: (savePath: string) => invoke<BackupEntry[]>("list_backups", { savePath }),

@@ -79,6 +79,17 @@ pub async fn load_save(state: State<'_, AppState>, save_path: String) -> Result<
 }
 
 #[tauri::command]
+pub async fn compare_save(
+    compare_path: String,
+    state: State<'_, AppState>,
+) -> Result<SaveData, String> {
+    let (engine, game_dir) = state.engine_and_dir()?;
+    engine
+        .parse_save(Path::new(&compare_path), Path::new(&game_dir))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn save_file(
     state: State<'_, AppState>,
     save_path: String,

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { api, type SaveFile, type DiffEntry, type BackupEntry } from "$lib/api";
+  import { api, type SaveFile, type SaveData, type DiffEntry, type BackupEntry } from "$lib/api";
+  import SaveComparison from '$lib/components/SaveComparison.svelte';
   import {
     currentEngine,
     currentGameDir,
@@ -43,6 +44,9 @@
   let backups = $state<BackupEntry[]>([]);
   let showBackups = $state(false);
   let showFlashPicker = $state(false);
+  let showComparison = $state(false);
+  let comparisonData = $state<SaveData | null>(null);
+  let comparisonName = $state('');
 
   // Available tabs based on save data
   let tabs = $derived(
@@ -171,6 +175,36 @@
       currentSave.set(data);
     } catch (e) {
       addToast(`Restore failed: ${e}`, "error");
+    }
+  }
+
+  async function handleCompare() {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const selected = await open({
+      title: 'Select save file to compare',
+      directory: false,
+      multiple: false,
+    });
+    if (!selected) return;
+
+    const path = typeof selected === 'string' ? selected : selected[0];
+    try {
+      comparisonData = await api.compareSave(path);
+      comparisonName = path.split(/[/\\]/).pop() || path;
+      showComparison = true;
+    } catch (e) {
+      addToast(`Failed to load comparison save: ${e}`, 'error');
+    }
+  }
+
+  async function handleCompareBackup(backupPath: string, backupName: string) {
+    try {
+      comparisonData = await api.compareSave(backupPath);
+      comparisonName = backupName;
+      showComparison = true;
+      showBackups = false;
+    } catch (e) {
+      addToast(`Failed to load comparison save: ${e}`, 'error');
     }
   }
 
@@ -359,6 +393,9 @@
             >
               ↪ Redo
             </button>
+            <button onclick={handleCompare} class="toolbar-btn" title="Compare with another save">
+              ⟷ Compare
+            </button>
             <button onclick={handleReload} title="Reload & diff">↻ Reload</button>
             <button onclick={showBackupList} title="Backups">📦 Backups</button>
             <button class="btn-primary" onclick={handleSave}>💾 Save</button>
@@ -426,6 +463,7 @@
                     {new Date(backup.modified).toLocaleString()} — {(backup.size / 1024).toFixed(0)} KB
                   </div>
                 </div>
+                <button onclick={() => handleCompareBackup(backup.path, backup.name)}>Compare</button>
                 <button class="btn-primary" onclick={() => restoreBackup(backup)}>Restore</button>
               </div>
             {/each}
@@ -434,6 +472,16 @@
         <button onclick={() => (showBackups = false)}>Close</button>
       </div>
     </div>
+  {/if}
+
+  {#if showComparison && comparisonData && save}
+    <SaveComparison
+      base={save}
+      compare={comparisonData}
+      baseName={savePath?.split(/[/\\]/).pop() || 'Current'}
+      compareName={comparisonName}
+      onclose={() => { showComparison = false; comparisonData = null; }}
+    />
   {/if}
 
   {#if showFlashPicker && engine}

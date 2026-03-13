@@ -44,6 +44,7 @@ pub fn run() {
             commands::list_saves,
             commands::load_save,
             commands::save_file,
+            commands::compare_save,
             commands::get_names,
             commands::get_diff,
             commands::list_backups,
