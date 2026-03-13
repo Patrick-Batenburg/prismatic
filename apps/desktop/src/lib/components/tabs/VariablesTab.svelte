@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Variable } from "$lib/api";
-  import { markModified, trackEdit } from "$lib/stores";
+  import { batchMode, batchSelected, toggleBatchItem, history, markModified, trackEdit } from '$lib/stores';
+  import type { Change } from '$lib/stores/history';
+  import BatchToolbar from '$lib/components/BatchToolbar.svelte';
 
   let { variables = $bindable() }: { variables: Variable[] } = $props();
   let search = $state("");
@@ -75,6 +77,22 @@
       history.push({ description: `Batch ${action} on ${selectedIds.size} variables`, changes });
     }
   }
+
+  function handleBatchAction(action: string, selectedIds: Set<string>, value?: string) {
+    const changes: Change[] = [];
+    const targetValue = action === 'reset_to_zero' ? 0 : (value ? (isNaN(Number(value)) ? value : Number(value)) : 0);
+
+    for (let i = 0; i < variables.length; i++) {
+      if (!selectedIds.has(String(variables[i].id))) continue;
+      changes.push({ path: ['variables', String(variables[i].id), 'value'], oldValue: variables[i].value, newValue: targetValue });
+      variables[i].value = targetValue;
+      markModified(`variables.${i}`);
+    }
+
+    if (changes.length > 0) {
+      history.push({ description: `Batch ${action} on ${selectedIds.size} variables`, changes });
+    }
+  }
 </script>
 
 <div class="var-controls">
@@ -97,14 +115,34 @@
   <span class="count">{filtered.length} / {variables.length}</span>
 </div>
 
+<BatchToolbar
+  items={filtered.map((v) => ({ id: String(v.id) }))}
+  actions={[
+    { label: 'Set value...', value: 'set_value' },
+    { label: 'Reset to 0', value: 'reset_to_zero' },
+  ]}
+  onapply={handleBatchAction}
+/>
+
 <div class="var-table">
   <div class="table-header">
+    {#if $batchMode}
+      <span class="col-check"></span>
+    {/if}
     <span class="col-id">ID</span>
     <span class="col-name">Name</span>
     <span class="col-value">Value</span>
   </div>
   {#each filtered as variable, idx (variable.id)}
     <div class="table-row" class:has-name={!!variable.name}>
+      {#if $batchMode}
+        <input
+          type="checkbox"
+          class="batch-check"
+          checked={$batchSelected.has(String(variable.id))}
+          onchange={() => toggleBatchItem(String(variable.id))}
+        />
+      {/if}
       <span class="col-id">{variable.id}</span>
       <span class="col-name" title={variable.name || `Variable #${variable.id}`}>
         {variable.name || `#${variable.id}`}
@@ -195,5 +233,15 @@
     width: 200px;
     font-family: monospace;
     font-size: 12px;
+  }
+
+  .batch-check {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    margin-right: 8px;
+  }
+  .col-check {
+    width: 24px;
   }
 </style>

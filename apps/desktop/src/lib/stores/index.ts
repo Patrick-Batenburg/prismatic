@@ -36,3 +36,19 @@ export function markModified(path: string) {
     return new Set(s);
   });
 }
+
+export const batchMode = writable<boolean>(false);
+export const batchSelected = writable<Set<string>>(new Set());
+
+export function toggleBatchItem(id: string) {
+  batchSelected.update((s) => {
+    const next = new Set(s);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
+}
+
+export function clearBatchSelection() {
+  batchSelected.set(new Set());
+}

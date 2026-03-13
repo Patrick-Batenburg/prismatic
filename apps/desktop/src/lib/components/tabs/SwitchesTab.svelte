@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Switch } from "$lib/api";
-  import { markModified, trackEdit } from "$lib/stores";
+  import { batchMode, batchSelected, toggleBatchItem, history, markModified, trackEdit } from '$lib/stores';
+  import type { Change } from '$lib/stores/history';
+  import BatchToolbar from '$lib/components/BatchToolbar.svelte';
 
   let { switches = $bindable() }: { switches: Switch[] } = $props();
   let search = $state("");
@@ -52,6 +54,25 @@
       history.push({ description: `Batch ${action} on ${selectedIds.size} switches`, changes });
     }
   }
+
+  function handleBatchAction(action: string, selectedIds: Set<string>) {
+    const changes: Change[] = [];
+
+    for (let i = 0; i < switches.length; i++) {
+      if (!selectedIds.has(String(switches[i].id))) continue;
+      const oldVal = switches[i].value;
+      const newVal = action === 'turn_all_on' ? true : action === 'turn_all_off' ? false : !oldVal;
+      if (oldVal !== newVal) {
+        changes.push({ path: ['switches', String(switches[i].id), 'value'], oldValue: oldVal, newValue: newVal });
+        switches[i].value = newVal;
+        markModified(`switches.${i}`);
+      }
+    }
+
+    if (changes.length > 0) {
+      history.push({ description: `Batch ${action} on ${selectedIds.size} switches`, changes });
+    }
+  }
 </script>
 
 <div class="sw-controls">
@@ -66,14 +87,35 @@
   <span class="count">{filtered.length} / {switches.length}</span>
 </div>
 
+<BatchToolbar
+  items={filtered.map((s) => ({ id: String(s.id) }))}
+  actions={[
+    { label: 'Turn all ON', value: 'turn_all_on' },
+    { label: 'Turn all OFF', value: 'turn_all_off' },
+    { label: 'Toggle selected', value: 'toggle_selected' },
+  ]}
+  onapply={handleBatchAction}
+/>
+
 <div class="sw-table">
   <div class="table-header">
+    {#if $batchMode}
+      <span class="col-check"></span>
+    {/if}
     <span class="col-id">ID</span>
     <span class="col-name">Name</span>
     <span class="col-toggle">State</span>
   </div>
   {#each filtered as sw, idx (sw.id)}
     <div class="table-row">
+      {#if $batchMode}
+        <input
+          type="checkbox"
+          class="batch-check"
+          checked={$batchSelected.has(String(sw.id))}
+          onchange={() => toggleBatchItem(String(sw.id))}
+        />
+      {/if}
       <span class="col-id">{sw.id}</span>
       <span class="col-name">{sw.name || `#${sw.id}`}</span>
       <button
@@ -174,5 +216,15 @@
     background: rgba(16, 185, 129, 0.15);
     border-color: var(--success);
     color: var(--success);
+  }
+
+  .batch-check {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    margin-right: 8px;
+  }
+  .col-check {
+    width: 24px;
   }
 </style>

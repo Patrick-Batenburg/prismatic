@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Character, CurrencyInfo, NameMap } from "$lib/api";
-  import { markModified, trackEdit } from "$lib/stores";
+  import { batchMode, batchSelected, toggleBatchItem, history, markModified, trackEdit } from '$lib/stores';
+  import type { Change } from '$lib/stores/history';
+  import BatchToolbar from '$lib/components/BatchToolbar.svelte';
 
   let {
     party = $bindable(),
@@ -44,6 +46,43 @@
     );
     markModified(`party.${charIdx}.equips.${eqIdx}`);
   }
+
+  function handleBatchAction(action: string, selectedIds: Set<string>, value?: string) {
+    const changes: Change[] = [];
+    const numVal = value ? Number(value) : 0;
+
+    for (let i = 0; i < party.length; i++) {
+      const char = party[i];
+      if (!selectedIds.has(String(char.id))) continue;
+
+      if (action === 'max_stats') {
+        for (let s = 0; s < char.stats.length; s++) {
+          const stat = char.stats[s];
+          if (stat.max != null && stat.current !== stat.max) {
+            changes.push({ path: ['party', String(i), 'stats', String(s), 'current'], oldValue: stat.current, newValue: stat.max });
+            stat.current = stat.max;
+          }
+        }
+      } else if (action === 'set_stat') {
+        for (let s = 0; s < char.stats.length; s++) {
+          const stat = char.stats[s];
+          changes.push({ path: ['party', String(i), 'stats', String(s), 'current'], oldValue: stat.current, newValue: numVal });
+          stat.current = numVal;
+        }
+      } else if (action === 'set_level') {
+        changes.push({ path: ['party', String(i), 'level'], oldValue: char.level, newValue: numVal });
+        char.level = numVal;
+      } else if (action === 'set_exp') {
+        changes.push({ path: ['party', String(i), 'exp'], oldValue: char.exp, newValue: numVal });
+        char.exp = numVal;
+      }
+      markModified(`party.${i}`);
+    }
+
+    if (changes.length > 0) {
+      history.push({ description: `Batch ${action} on ${selectedIds.size} characters`, changes });
+    }
+  }
 </script>
 
 <!-- Currency at the top -->
@@ -74,9 +113,29 @@
   </div>
 {/if}
 
+<BatchToolbar
+  items={party.map((c) => ({ id: String(c.id) }))}
+  actions={[
+    { label: 'Set stat to value...', value: 'set_stat' },
+    { label: 'Max all stats', value: 'max_stats' },
+    { label: 'Set level...', value: 'set_level' },
+    { label: 'Set experience...', value: 'set_exp' },
+  ]}
+  onapply={handleBatchAction}
+/>
+
 <div class="party-grid">
   {#each party as char, idx (char.id)}
     <div class="character-card">
+      {#if $batchMode}
+        <label class="batch-check">
+          <input
+            type="checkbox"
+            checked={$batchSelected.has(String(char.id))}
+            onchange={() => toggleBatchItem(String(char.id))}
+          />
+        </label>
+      {/if}
       <div class="char-header">
         <input
           class="char-name"
@@ -401,5 +460,16 @@
     background: var(--bg-tertiary);
     border-radius: 10px;
     color: var(--text-secondary);
+  }
+
+  .batch-check {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .batch-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
   }
 </style>

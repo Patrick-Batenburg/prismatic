@@ -13,6 +13,9 @@
     activePatch,
     modifiedFields,
     history,
+    batchMode,
+    batchSelected,
+    clearBatchSelection,
   } from "$lib/stores";
   import type { Change } from "$lib/stores/history";
   import PartyTab from "$lib/components/tabs/PartyTab.svelte";
@@ -222,6 +225,15 @@
     if (command) applyChanges(command.changes, 'redo');
   }
 
+  $effect(() => {
+    // Clear batch selection on any tab change to prevent cross-tab ID collisions
+    const tab = activeTab;
+    if (tab === 'raw' && $batchMode) {
+      batchMode.set(false);
+    }
+    clearBatchSelection();
+  });
+
   function handleKeydown(e: KeyboardEvent) {
     if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
       e.preventDefault();
@@ -318,6 +330,19 @@
           </div>
 
           <div class="toolbar-actions">
+            <button
+              onclick={() => {
+                const next = !$batchMode;
+                batchMode.set(next);
+                if (!next) clearBatchSelection();
+              }}
+              class="toolbar-btn"
+              class:active={$batchMode}
+              disabled={activeTab === 'raw'}
+              title="Toggle batch editing mode"
+            >
+              ☰ Batch
+            </button>
             <button
               onclick={handleUndo}
               disabled={!$history.undoStack.length}
@@ -777,6 +802,12 @@
   .backup-meta {
     font-size: 11px;
     color: var(--text-muted);
+  }
+
+  .toolbar-btn.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
   }
 
   @keyframes fadeIn {

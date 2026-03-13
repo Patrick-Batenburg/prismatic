@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Inventory } from "$lib/api";
-  import { markModified, trackEdit } from "$lib/stores";
+  import { batchMode, batchSelected, toggleBatchItem, history, markModified, trackEdit } from '$lib/stores';
+  import type { Change } from '$lib/stores/history';
+  import BatchToolbar from '$lib/components/BatchToolbar.svelte';
 
   let { inventory = $bindable() }: { inventory: Inventory } = $props();
   let search = $state("");
@@ -14,6 +16,30 @@
       return list.filter((i) => i.name.toLowerCase().includes(q) || i.id.toString().includes(q));
     })(),
   );
+
+  function handleBatchAction(action: string, selectedIds: Set<string>, value?: string) {
+    const changes: Change[] = [];
+    const section = inventory[activeSection];
+    const numVal = value ? Number(value) : 0;
+
+    if (action === 'set_quantity') {
+      for (let i = 0; i < section.length; i++) {
+        if (!selectedIds.has(String(section[i].id))) continue;
+        changes.push({ path: ['inventory', activeSection, String(i), 'quantity'], oldValue: section[i].quantity, newValue: numVal });
+        section[i].quantity = numVal;
+        markModified(`inventory.${activeSection}.${i}.quantity`);
+      }
+    } else if (action === 'remove_selected') {
+      const oldArray = structuredClone(section);
+      const newArray = section.filter(item => !selectedIds.has(String(item.id)));
+      changes.push({ path: ['inventory', activeSection], oldValue: oldArray, newValue: newArray });
+      inventory[activeSection] = newArray;
+    }
+
+    if (changes.length > 0) {
+      history.push({ description: `Batch ${action} on ${selectedIds.size} items`, changes });
+    }
+  }
 </script>
 
 <div class="inventory-header">
@@ -31,14 +57,34 @@
   <input type="text" placeholder="Search items..." bind:value={search} class="search-input" />
 </div>
 
+<BatchToolbar
+  items={filteredItems.map((item) => ({ id: String(item.id) }))}
+  actions={[
+    { label: 'Set quantity...', value: 'set_quantity' },
+    { label: 'Remove selected', value: 'remove_selected' },
+  ]}
+  onapply={handleBatchAction}
+/>
+
 <div class="item-table">
   <div class="table-header">
+    {#if $batchMode}
+      <span class="col-check"></span>
+    {/if}
     <span class="col-id">ID</span>
     <span class="col-name">Name</span>
     <span class="col-qty">Qty</span>
   </div>
   {#each filteredItems as item, idx (item.id)}
     <div class="table-row">
+      {#if $batchMode}
+        <input
+          type="checkbox"
+          class="batch-check"
+          checked={$batchSelected.has(String(item.id))}
+          onchange={() => toggleBatchItem(String(item.id))}
+        />
+      {/if}
       <span class="col-id">{item.id}</span>
       <span class="col-name">{item.name}</span>
       <input
@@ -142,5 +188,15 @@
     padding: 20px;
     text-align: center;
     color: var(--text-muted);
+  }
+
+  .batch-check {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    margin-right: 8px;
+  }
+  .col-check {
+    width: 24px;
   }
 </style>
