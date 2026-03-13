@@ -27,6 +27,9 @@ export function addToast(
   }, duration);
 }
 
+export { history, trackEdit } from './history';
+export type { Command, Change } from './history';
+
 export function markModified(path: string) {
   modifiedFields.update((s) => {
     s.add(path);

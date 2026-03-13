@@ -9,6 +9,8 @@
     expandAll = false,
     matchCount = $bindable(0),
     filterFn = undefined as ((key: string, value: unknown) => boolean) | undefined,
+    path = [] as string[],
+    onedit = undefined as ((path: string[], oldValue: unknown, newValue: unknown) => void) | undefined,
   }: {
     key: string;
     value: unknown;
@@ -17,6 +19,8 @@
     expandAll?: boolean;
     matchCount?: number;
     filterFn?: ((key: string, value: unknown) => boolean) | undefined;
+    path?: string[];
+    onedit?: ((path: string[], oldValue: unknown, newValue: unknown) => void) | undefined;
   } = $props();
 
   // Capture initial depth (not reactive — intentional, depth is fixed per instance)
@@ -114,10 +118,14 @@
 
   function commitEdit() {
     editing = false;
+    const oldValue = value;
     try {
       value = JSON.parse(editValue);
     } catch {
       value = editValue;
+    }
+    if (onedit) {
+      onedit(path, oldValue, value);
     }
   }
 </script>
@@ -165,9 +173,11 @@
       key={childKey}
       value={childVal}
       depth={depth + 1}
+      path={[...path, childKey]}
       {search}
       {expandAll}
       {filterFn}
+      {onedit}
       bind:matchCount
     />
   {/each}

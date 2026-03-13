@@ -1,7 +1,12 @@
 <script lang="ts">
   import JsonNode from "$lib/components/JsonNode.svelte";
+  import { trackEdit } from "$lib/stores";
 
   let { data, engineId = "" }: { data: unknown; engineId?: string } = $props();
+
+  function handleRawEdit(path: string[], oldValue: unknown, newValue: unknown) {
+    trackEdit(['raw', ...path], oldValue, newValue, `Edit raw field ${path.join('.')}`);
+  }
   let searchInput = $state("");
   let search = $state("");
   let matchCount = $state(0);
@@ -112,7 +117,7 @@
 {/if}
 
 <div class="json-tree">
-  <JsonNode key="root" value={data} depth={0} {search} {expandAll} {filterFn} bind:matchCount />
+  <JsonNode key="root" value={data} depth={0} {search} {expandAll} {filterFn} onedit={handleRawEdit} bind:matchCount />
 </div>
 
 <style>

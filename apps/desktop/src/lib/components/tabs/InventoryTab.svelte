@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Inventory } from "$lib/api";
-  import { markModified } from "$lib/stores";
+  import { markModified, trackEdit } from "$lib/stores";
 
   let { inventory = $bindable() }: { inventory: Inventory } = $props();
   let search = $state("");
@@ -44,8 +44,19 @@
       <input
         class="col-qty"
         type="number"
-        bind:value={item.quantity}
-        oninput={() => markModified(`inventory.${activeSection}.${idx}`)}
+        value={item.quantity}
+        onfocus={(e) => { e.currentTarget.dataset.old = String(item.quantity); }}
+        onchange={(e) => {
+          const oldVal = Number(e.currentTarget.dataset.old);
+          const newVal = Number(e.currentTarget.value);
+          item.quantity = newVal;
+          trackEdit(
+            ['inventory', activeSection, String(idx), 'quantity'],
+            oldVal, newVal,
+            `Set ${item.name} quantity to ${newVal}`
+          );
+          markModified(`inventory.${activeSection}.${idx}`);
+        }}
         min="0"
       />
     </div>

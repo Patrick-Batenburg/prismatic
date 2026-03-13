@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Character, CurrencyInfo, NameMap } from "$lib/api";
-  import { markModified } from "$lib/stores";
+  import { markModified, trackEdit } from "$lib/stores";
 
   let {
     party = $bindable(),
@@ -24,9 +24,10 @@
   function onEquipChange(
     charIdx: number,
     eqIdx: number,
-    eq: { item_id: number | null; item_name: string | null; data_class: string },
+    eq: { item_id: number | null; item_name: string | null; data_class: string; slot_name: string },
     value: string,
   ) {
+    const oldId = eq.item_id;
     const id = Number(value);
     eq.item_id = id || null;
     // Update the displayed name from nameMap
@@ -36,6 +37,11 @@
     } else {
       eq.item_name = null;
     }
+    trackEdit(
+      ['party', String(charIdx), 'equips', String(eqIdx), 'item_id'],
+      oldId, eq.item_id,
+      `Set ${eq.slot_name} to ${eq.item_name || 'None'}`
+    );
     markModified(`party.${charIdx}.equips.${eqIdx}`);
   }
 </script>
@@ -51,8 +57,19 @@
       id="party-currency"
       type="number"
       class="currency-input"
-      bind:value={currency.amount}
-      oninput={() => markModified("currency.amount")}
+      value={currency.amount}
+      onfocus={(e) => { e.currentTarget.dataset.old = String(currency.amount); }}
+      onchange={(e) => {
+        const oldVal = Number(e.currentTarget.dataset.old);
+        const newVal = Number(e.currentTarget.value);
+        currency.amount = newVal;
+        trackEdit(
+          ['currency', 'amount'],
+          oldVal, newVal,
+          `Set ${currency.label} to ${newVal}`
+        );
+        markModified("currency.amount");
+      }}
     />
   </div>
 {/if}
@@ -63,8 +80,19 @@
       <div class="char-header">
         <input
           class="char-name"
-          bind:value={char.name}
-          oninput={() => markModified(`party.${idx}.name`)}
+          value={char.name}
+          onfocus={(e) => { e.currentTarget.dataset.old = char.name; }}
+          onchange={(e) => {
+            const oldVal = e.currentTarget.dataset.old ?? '';
+            const newVal = e.currentTarget.value;
+            char.name = newVal;
+            trackEdit(
+              ['party', String(idx), 'name'],
+              oldVal, newVal,
+              `Rename character to "${newVal}"`
+            );
+            markModified(`party.${idx}.name`);
+          }}
         />
         {#if char.class_name}
           <span class="char-class">{char.class_name}</span>
@@ -76,16 +104,38 @@
           Level
           <input
             type="number"
-            bind:value={char.level}
-            oninput={() => markModified(`party.${idx}.level`)}
+            value={char.level}
+            onfocus={(e) => { e.currentTarget.dataset.old = String(char.level); }}
+            onchange={(e) => {
+              const oldVal = Number(e.currentTarget.dataset.old);
+              const newVal = Number(e.currentTarget.value);
+              char.level = newVal;
+              trackEdit(
+                ['party', String(idx), 'level'],
+                oldVal, newVal,
+                `Set ${char.name} level to ${newVal}`
+              );
+              markModified(`party.${idx}.level`);
+            }}
           />
         </label>
         <label>
           EXP
           <input
             type="number"
-            bind:value={char.exp}
-            oninput={() => markModified(`party.${idx}.exp`)}
+            value={char.exp}
+            onfocus={(e) => { e.currentTarget.dataset.old = String(char.exp); }}
+            onchange={(e) => {
+              const oldVal = Number(e.currentTarget.dataset.old);
+              const newVal = Number(e.currentTarget.value);
+              char.exp = newVal;
+              trackEdit(
+                ['party', String(idx), 'exp'],
+                oldVal, newVal,
+                `Set ${char.name} EXP to ${newVal}`
+              );
+              markModified(`party.${idx}.exp`);
+            }}
           />
         </label>
       </div>
@@ -96,8 +146,19 @@
             <span class="stat-label">{stat.label}</span>
             <input
               type="number"
-              bind:value={stat.current}
-              oninput={() => markModified(`party.${idx}.stats.${si}`)}
+              value={stat.current}
+              onfocus={(e) => { e.currentTarget.dataset.old = String(stat.current); }}
+              onchange={(e) => {
+                const oldVal = Number(e.currentTarget.dataset.old);
+                const newVal = Number(e.currentTarget.value);
+                stat.current = newVal;
+                trackEdit(
+                  ['party', String(idx), 'stats', String(si), 'current'],
+                  oldVal, newVal,
+                  `Set ${char.name} ${stat.label} to ${newVal}`
+                );
+                markModified(`party.${idx}.stats.${si}.current`);
+              }}
             />
           </label>
         {/each}

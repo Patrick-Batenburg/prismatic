@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Variable } from "$lib/api";
-  import { markModified } from "$lib/stores";
+  import { markModified, trackEdit } from "$lib/stores";
 
   let { variables = $bindable() }: { variables: Variable[] } = $props();
   let search = $state("");
@@ -38,18 +38,42 @@
   );
 
   function updateValue(variable: Variable, newVal: string, idx: number) {
+    const oldValue = variable.value;
     // Try to parse as number first
     const num = Number(newVal);
+    let newValue: string | number | boolean = newVal;
     if (!isNaN(num) && newVal.trim() !== "") {
-      variable.value = num;
+      newValue = num;
     } else if (newVal === "true") {
-      variable.value = true;
+      newValue = true;
     } else if (newVal === "false") {
-      variable.value = false;
-    } else {
-      variable.value = newVal;
+      newValue = false;
     }
-    markModified(`variables.${idx}`);
+    variable.value = newValue;
+    // Find the actual array index for undo path resolution
+    const arrayIdx = variables.indexOf(variable);
+    trackEdit(
+      ['variables', String(arrayIdx), 'value'],
+      oldValue, newValue,
+      `Set variable "${variable.name || variable.id}" to ${newValue}`
+    );
+    markModified(`variables.${arrayIdx}`);
+  }
+
+  function handleBatchAction(action: string, selectedIds: Set<string>, value?: string) {
+    const changes: Change[] = [];
+    const targetValue = action === 'reset_to_zero' ? 0 : (value ? (isNaN(Number(value)) ? value : Number(value)) : 0);
+
+    for (let i = 0; i < variables.length; i++) {
+      if (!selectedIds.has(String(variables[i].id))) continue;
+      changes.push({ path: ['variables', String(i), 'value'], oldValue: variables[i].value, newValue: targetValue });
+      variables[i].value = targetValue;
+      markModified(`variables.${i}`);
+    }
+
+    if (changes.length > 0) {
+      history.push({ description: `Batch ${action} on ${selectedIds.size} variables`, changes });
+    }
   }
 </script>
 

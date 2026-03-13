@@ -1,7 +1,6 @@
 <script lang="ts">
   import "../app.css";
-  import { toasts } from "$lib/stores";
-  import { statusMessage } from "$lib/stores";
+  import { toasts, statusMessage } from "$lib/stores";
 
   let { children } = $props();
   let toastList = $derived($toasts);

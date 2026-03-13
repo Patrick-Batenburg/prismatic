@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Switch } from "$lib/api";
-  import { markModified } from "$lib/stores";
+  import { markModified, trackEdit } from "$lib/stores";
 
   let { switches = $bindable() }: { switches: Switch[] } = $props();
   let search = $state("");
@@ -22,8 +22,35 @@
   );
 
   function toggleSwitch(sw: Switch, idx: number) {
+    const oldValue = sw.value;
     sw.value = !sw.value;
-    markModified(`switches.${idx}`);
+    // Find the actual array index for undo path resolution
+    const arrayIdx = switches.indexOf(sw);
+    trackEdit(
+      ['switches', String(arrayIdx), 'value'],
+      oldValue, sw.value,
+      `Toggle switch "${sw.name || sw.id}" ${sw.value ? 'ON' : 'OFF'}`
+    );
+    markModified(`switches.${arrayIdx}`);
+  }
+
+  function handleBatchAction(action: string, selectedIds: Set<string>) {
+    const changes: Change[] = [];
+
+    for (let i = 0; i < switches.length; i++) {
+      if (!selectedIds.has(String(switches[i].id))) continue;
+      const oldVal = switches[i].value;
+      const newVal = action === 'turn_all_on' ? true : action === 'turn_all_off' ? false : !oldVal;
+      if (oldVal !== newVal) {
+        changes.push({ path: ['switches', String(i), 'value'], oldValue: oldVal, newValue: newVal });
+        switches[i].value = newVal;
+        markModified(`switches.${i}`);
+      }
+    }
+
+    if (changes.length > 0) {
+      history.push({ description: `Batch ${action} on ${selectedIds.size} switches`, changes });
+    }
   }
 </script>
 

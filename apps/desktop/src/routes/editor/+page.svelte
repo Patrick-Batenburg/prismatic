@@ -12,7 +12,9 @@
     addToast,
     activePatch,
     modifiedFields,
+    history,
   } from "$lib/stores";
+  import type { Change } from "$lib/stores/history";
   import PartyTab from "$lib/components/tabs/PartyTab.svelte";
   import InventoryTab from "$lib/components/tabs/InventoryTab.svelte";
   import VariablesTab from "$lib/components/tabs/VariablesTab.svelte";
@@ -84,6 +86,7 @@
       currentSave.set(data);
       currentSavePath.set(sf.path);
       modifiedFields.set(new Set());
+      history.clear();
       statusMessage.set(`${engine?.name} — ${sf.name}`);
 
       // Auto-select first available tab
@@ -121,6 +124,7 @@
       const data = await api.loadSave(savePath);
       currentSave.set(data);
       modifiedFields.set(new Set());
+      history.clear();
     } catch (e) {
       addToast(`Reload failed: ${e}`, "error");
     }
@@ -189,7 +193,47 @@
     currentGameDir.set(null);
     goto("/");
   }
+
+  function applyChanges(changes: Change[], direction: 'undo' | 'redo') {
+    if (!$currentSave) return;
+    const updated = structuredClone($currentSave);
+    for (const change of changes) {
+      const value = direction === 'undo' ? change.oldValue : change.newValue;
+      setNestedValue(updated, change.path, value);
+    }
+    currentSave.set(updated);
+  }
+
+  function setNestedValue(obj: Record<string, unknown>, path: string[], value: unknown) {
+    let current: unknown = obj;
+    for (let i = 0; i < path.length - 1; i++) {
+      current = (current as Record<string, unknown>)[path[i]];
+    }
+    (current as Record<string, unknown>)[path[path.length - 1]] = value;
+  }
+
+  function handleUndo() {
+    const command = history.undo();
+    if (command) applyChanges(command.changes, 'undo');
+  }
+
+  function handleRedo() {
+    const command = history.redo();
+    if (command) applyChanges(command.changes, 'redo');
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      handleUndo();
+    } else if ((e.ctrlKey && e.shiftKey && e.key === 'Z') || (e.ctrlKey && e.key === 'y')) {
+      e.preventDefault();
+      handleRedo();
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="editor-layout">
   <!-- Sidebar: save file list -->
@@ -274,6 +318,22 @@
           </div>
 
           <div class="toolbar-actions">
+            <button
+              onclick={handleUndo}
+              disabled={!$history.undoStack.length}
+              title={history.peekUndo() ? `Undo: ${history.peekUndo()}` : 'Nothing to undo'}
+              class="toolbar-btn"
+            >
+              ↩ Undo
+            </button>
+            <button
+              onclick={handleRedo}
+              disabled={!$history.redoStack.length}
+              title={history.peekRedo() ? `Redo: ${history.peekRedo()}` : 'Nothing to redo'}
+              class="toolbar-btn"
+            >
+              ↪ Redo
+            </button>
             <button onclick={handleReload} title="Reload & diff">↻ Reload</button>
             <button onclick={showBackupList} title="Backups">📦 Backups</button>
             <button class="btn-primary" onclick={handleSave}>💾 Save</button>
