@@ -281,19 +281,21 @@
         </div>
 
         <!-- Tab content -->
-        <div class="tab-content">
-          {#if activeTab === "party" && (save.party || save.currency)}
-            <PartyTab party={save.party ?? []} currency={save.currency} nameMap={names} />
-          {:else if activeTab === "inventory" && save.inventory}
-            <InventoryTab inventory={save.inventory} />
-          {:else if activeTab === "variables" && save.variables}
-            <VariablesTab variables={save.variables} />
-          {:else if activeTab === "switches" && save.switches}
-            <SwitchesTab switches={save.switches} />
-          {:else if activeTab === "raw"}
-            <RawTab data={save.raw} engineId={engine?.id || ""} />
-          {/if}
-        </div>
+        {#key activeTab}
+          <div class="tab-content" style="animation: fadeIn 0.15s ease">
+            {#if activeTab === "party" && (save.party || save.currency)}
+              <PartyTab party={save.party ?? []} currency={save.currency} nameMap={names} />
+            {:else if activeTab === "inventory" && save.inventory}
+              <InventoryTab inventory={save.inventory} />
+            {:else if activeTab === "variables" && save.variables}
+              <VariablesTab variables={save.variables} />
+            {:else if activeTab === "switches" && save.switches}
+              <SwitchesTab switches={save.switches} />
+            {:else if activeTab === "raw"}
+              <RawTab data={save.raw} engineId={engine?.id || ""} />
+            {/if}
+          </div>
+        {/key}
       {/if}
     {:else}
       <div class="empty-state">
@@ -527,9 +529,19 @@
     justify-content: space-between;
     align-items: center;
     padding: 8px 16px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: none;
     background: var(--bg-secondary);
     flex-shrink: 0;
+    position: relative;
+  }
+  .toolbar::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--border-spectral);
   }
 
   .tab-bar {
@@ -538,22 +550,25 @@
   }
 
   .tab {
-    padding: 6px 16px;
-    border-radius: var(--radius) var(--radius) 0 0;
-    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 0;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
     background: transparent;
-    border: 1px solid transparent;
-    border-bottom: none;
+    border: none;
+    border-bottom: 2px solid transparent;
     color: var(--text-secondary);
+    transition: color var(--transition), border-color var(--transition);
   }
   .tab:hover {
     color: var(--text-primary);
-    background: var(--bg-tertiary);
+    background: transparent;
   }
   .tab.active {
-    background: var(--bg-primary);
     color: var(--accent-primary);
-    border-color: var(--border);
+    border-bottom-color: var(--accent-primary);
     font-weight: 500;
   }
 
@@ -702,5 +717,10 @@
   .backup-meta {
     font-size: 11px;
     color: var(--text-muted);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 </style>

@@ -354,6 +354,7 @@
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    box-shadow: var(--shadow-card);
   }
 
   .engine-card::before {
@@ -362,22 +363,19 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
+    height: 1px;
     background: var(--engine-color);
-    opacity: 0;
-    transition: opacity 0.3s;
+    opacity: 1;
   }
 
   .engine-card:hover {
     border-color: var(--engine-color);
-    transform: translateY(-4px);
-    box-shadow:
-      0 8px 24px rgba(0, 0, 0, 0.3),
-      0 0 20px color-mix(in srgb, var(--engine-color) 20%, transparent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-elevated);
   }
 
   .engine-card:hover::before {
-    opacity: 1;
+    height: 2px;
   }
 
   .engine-icon {

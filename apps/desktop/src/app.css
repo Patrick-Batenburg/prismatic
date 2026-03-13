@@ -1,29 +1,35 @@
 :root {
-  --bg-primary: #0d0d1a;
-  --bg-secondary: #151528;
-  --bg-tertiary: #1a1a35;
-  --bg-card: #1e1e3a;
-  --bg-hover: #252550;
-  --bg-input: #12122a;
+  --bg-primary: #08080f;
+  --bg-secondary: #0e0e16;
+  --bg-tertiary: #131320;
+  --bg-card: #111118;
+  --bg-hover: #1a1a28;
+  --bg-input: #0a0a12;
 
-  --text-primary: #e8e8f0;
-  --text-secondary: #a0a0c0;
-  --text-muted: #606080;
+  --text-primary: #d0d0e0;
+  --text-secondary: #808098;
+  --text-muted: #505068;
 
   --accent-primary: #6c5ce7;
   --accent-secondary: #a855f7;
-  --accent-glow: rgba(108, 92, 231, 0.3);
+  --accent-glow: rgba(108, 92, 231, 0.2);
 
+  /* Status colors unchanged */
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
   --info: #3b82f6;
 
   --modified: #f59e0b;
-  --modified-bg: rgba(245, 158, 11, 0.1);
+  --modified-bg: rgba(245, 158, 11, 0.08);
 
-  --border: #2a2a50;
+  --border: #1a1a28;
   --border-focus: #6c5ce7;
+  --border-spectral: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.4), rgba(59, 130, 246, 0.4), transparent);
+
+  /* New Obsidian Prism variables */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.4);
 
   --radius: 8px;
   --radius-sm: 4px;
@@ -55,18 +61,18 @@ body {
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-primary);
+  background: var(--text-muted);
 }
 
 input,
@@ -86,7 +92,7 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 2px var(--accent-glow);
+  box-shadow: 0 0 0 1px var(--accent-glow);
 }
 
 button {
@@ -103,6 +109,7 @@ button {
 button:hover {
   background: var(--bg-hover);
   border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-glow);
 }
 button:active {
   transform: scale(0.98);
@@ -115,6 +122,7 @@ button:active {
 }
 .btn-primary:hover {
   background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
 }
 
 .btn-danger {
@@ -143,4 +151,11 @@ button:active {
 .modified-indicator {
   border-left: 3px solid var(--modified) !important;
   background: var(--modified-bg) !important;
+}
+
+.spectral-divider {
+  height: 1px;
+  background: var(--border-spectral);
+  border: none;
+  margin: 0;
 }

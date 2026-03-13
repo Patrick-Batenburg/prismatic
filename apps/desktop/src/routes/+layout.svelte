@@ -45,13 +45,23 @@
   .status-bar {
     height: 24px;
     background: var(--bg-secondary);
-    border-top: 1px solid var(--border);
+    border-top: none;
     display: flex;
     align-items: center;
     padding: 0 12px;
     font-size: 11px;
     color: var(--text-muted);
     flex-shrink: 0;
+    position: relative;
+  }
+  .status-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--border-spectral);
   }
 
   .toast-container {
