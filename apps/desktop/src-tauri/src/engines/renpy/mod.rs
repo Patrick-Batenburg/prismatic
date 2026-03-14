@@ -1,6 +1,7 @@
 mod pickle;
 
 use crate::engines::types::*;
+use crate::engines::utils::has_extension;
 use crate::engines::EnginePlugin;
 use chrono::Local;
 use std::fs;
@@ -268,7 +269,7 @@ impl EnginePlugin for RenpyPlugin {
                 .map(|entries| {
                     entries
                         .flatten()
-                        .any(|e| e.path().extension().and_then(|ext| ext.to_str()) == Some("rpa"))
+                        .any(|e| has_extension(&e.path(), "rpa"))
                 })
                 .unwrap_or(false)
     }
@@ -290,7 +291,7 @@ impl EnginePlugin for RenpyPlugin {
                     let modified = meta
                         .modified()
                         .ok()
-                        .map(|t| chrono::DateTime::<Local>::from(t).to_rfc3339())
+                        .map(crate::engines::utils::format_modified_time)
                         .unwrap_or_default();
 
                     saves.push(SaveFile {
@@ -385,7 +386,7 @@ impl EnginePlugin for RenpyPlugin {
         if let Ok(entries) = fs::read_dir(&game_sub) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().and_then(|e| e.to_str()) == Some("rpy") {
+                if has_extension(&path, "rpy") {
                     if let Ok(content) = fs::read_to_string(&path) {
                         Self::scan_rpy_for_names(&content, &mut names);
                     }

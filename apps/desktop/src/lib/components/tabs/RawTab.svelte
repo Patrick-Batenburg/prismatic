@@ -115,6 +115,7 @@
     value={searchInput}
     oninput={onSearchInput}
     class="search-input"
+    aria-label="Search raw data"
   />
   {#if search}
     <span class="match-count">{matchCount} matches</span>
@@ -163,7 +164,7 @@
   }
 
   .search-input {
-    width: 300px;
+    width: var(--search-input-width-lg);
   }
 
   .match-count {

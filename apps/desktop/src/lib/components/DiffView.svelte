@@ -132,6 +132,7 @@
 <div
   class="modal-overlay"
   role="button"
+  aria-label="Close dialog"
   tabindex="-1"
   onclick={onclose}
   onkeydown={(e) => {
@@ -141,13 +142,21 @@
   <div
     class="diff-modal"
     role="dialog"
+    aria-modal="true"
+    aria-label="Diff viewer"
     tabindex="-1"
     onclick={(e) => e.stopPropagation()}
     onkeydown={(e) => e.stopPropagation()}
   >
     <div class="diff-header">
       <h3>Changes Detected ({entries.length})</h3>
-      <input type="text" placeholder="Filter changes..." bind:value={search} class="search-input" />
+      <input
+        type="text"
+        placeholder="Filter changes..."
+        bind:value={search}
+        class="search-input"
+        aria-label="Search diff"
+      />
       <button onclick={onclose}>✕</button>
     </div>
 
@@ -181,16 +190,6 @@
 </div>
 
 <style>
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-  }
-
   .diff-modal {
     background: var(--bg-card);
     border: 1px solid var(--border);

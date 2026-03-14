@@ -59,11 +59,11 @@
     history.setMaxDepth(prefs.undoHistoryDepth);
   });
 
-  let { children } = $props();
-  let toastList = $derived($toasts);
-  let flash = $derived($statusFlash);
+  const { children } = $props();
+  const toastList = $derived($toasts);
+  const flash = $derived($statusFlash);
 
-  let baseStatus = $derived(
+  const baseStatus = $derived(
     (() => {
       const engine = $currentEngine;
       const savePath = $currentSavePath;
@@ -82,8 +82,8 @@
     })(),
   );
 
-  let statusText = $derived(flash?.text ?? baseStatus);
-  let statusType = $derived(flash?.type ?? "idle");
+  const statusText = $derived(flash?.text ?? baseStatus);
+  const statusType = $derived(flash?.type ?? "idle");
 </script>
 
 <div class="app-shell">

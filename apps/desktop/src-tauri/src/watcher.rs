@@ -63,11 +63,11 @@ pub fn watch_save(
     save_path: String,
 ) -> Result<(), String> {
     let path = PathBuf::from(&save_path);
-    watcher.lock().unwrap().watch(path, app)
+    watcher.lock().map_err(|e| format!("Lock poisoned: {e}"))?.watch(path, app)
 }
 
 #[tauri::command]
 pub fn unwatch_save(watcher: tauri::State<SharedWatcher>) -> Result<(), String> {
-    watcher.lock().unwrap().unwatch();
+    watcher.lock().map_err(|e| format!("Lock poisoned: {e}"))?.unwatch();
     Ok(())
 }

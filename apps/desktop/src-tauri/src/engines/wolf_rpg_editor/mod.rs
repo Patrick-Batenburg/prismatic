@@ -4,6 +4,12 @@ pub mod vardb;
 
 use crate::engines::types::*;
 use crate::engines::EnginePlugin;
+
+// Magic number constants for Wolf RPG Editor save file parsing
+pub(crate) const HEADER_SIZE: usize = 20;
+pub(crate) const SAVE_MARKER: u8 = 0x19;
+pub(crate) const VARDB_TYPE_MULTIPLIER: u32 = 100000;
+pub(crate) const VARDB_ENTRY_MULTIPLIER: u32 = 100;
 use chrono::Local;
 use std::fs;
 use std::path::Path;
@@ -76,10 +82,7 @@ impl EnginePlugin for WolfRpgEditorPlugin {
             let meta = fs::metadata(&path).map_err(|e| format!("metadata error: {}", e))?;
             let modified = meta
                 .modified()
-                .map(|t| {
-                    let dt: chrono::DateTime<chrono::Local> = t.into();
-                    dt.format("%Y-%m-%d %H:%M:%S").to_string()
-                })
+                .map(crate::engines::utils::format_modified_time)
                 .unwrap_or_default();
 
             saves.push(SaveFile {
@@ -101,9 +104,9 @@ impl EnginePlugin for WolfRpgEditorPlugin {
         let mut walker = reader::FileWalker::new(&buf);
 
         // Header
-        walker.skip(20)?; // 20-byte header
+        walker.skip(HEADER_SIZE)?; // 20-byte header
         let marker = walker.read_u8()?;
-        if marker != 0x19 {
+        if marker != SAVE_MARKER {
             return Err(format!(
                 "Invalid save: expected 0x19 marker, got 0x{:02X}",
                 marker
@@ -151,9 +154,9 @@ impl EnginePlugin for WolfRpgEditorPlugin {
         let mut walker = reader::FileWalker::new(&buf);
 
         // Skip header
-        walker.skip(20)?;
+        walker.skip(HEADER_SIZE)?;
         let marker = walker.read_u8()?;
-        if marker != 0x19 {
+        if marker != SAVE_MARKER {
             return Err(format!(
                 "Invalid save: expected 0x19 marker, got 0x{:02X}",
                 marker
@@ -177,9 +180,9 @@ impl EnginePlugin for WolfRpgEditorPlugin {
         // Apply edits from SaveData.variables back into the VarDB structs
         if let Some(ref variables) = data.variables {
             for var in variables {
-                let type_idx = (var.id / 100000) as usize;
-                let entry_idx = ((var.id % 100000) / 100) as usize;
-                let field_idx = (var.id % 100) as usize;
+                let type_idx = (var.id / VARDB_TYPE_MULTIPLIER) as usize;
+                let entry_idx = ((var.id % VARDB_TYPE_MULTIPLIER) / VARDB_ENTRY_MULTIPLIER) as usize;
+                let field_idx = (var.id % VARDB_ENTRY_MULTIPLIER) as usize;
 
                 if let Some(vtype) = vardb.types.get_mut(type_idx) {
                     if let Some(entry) = vtype.entries.get_mut(entry_idx) {
@@ -332,7 +335,7 @@ fn vardb_to_variables(vardb: &vardb::VariableDatabase) -> Vec<Variable> {
         let group = format!("Type {}", ti);
         for (ei, entry) in vtype.entries.iter().enumerate() {
             for (fi, field) in entry.fields.iter().enumerate() {
-                let id = (ti as u32) * 100000 + (ei as u32) * 100 + (fi as u32);
+                let id = (ti as u32) * VARDB_TYPE_MULTIPLIER + (ei as u32) * VARDB_ENTRY_MULTIPLIER + (fi as u32);
                 let value = match field {
                     vardb::VarField::Int(n) => serde_json::json!(*n),
                     vardb::VarField::Str(bytes) => {
