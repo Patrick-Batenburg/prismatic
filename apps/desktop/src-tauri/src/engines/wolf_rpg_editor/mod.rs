@@ -229,51 +229,87 @@ impl EnginePlugin for WolfRpgEditorPlugin {
     }
 
     fn apply_debug_patch(&self, game_dir: &Path) -> Result<PatchInfo, String> {
-        let lnk_path = game_dir.join("Debug Mode.lnk");
-
-        // Find Game.exe or GuruMin.exe (some Wolf RPG Editor games rename the exe)
-        let game_exe = if game_dir.join("Game.exe").exists() {
-            game_dir.join("Game.exe")
+        // Find Game.exe or GamePro.exe (some Wolf RPG Editor games rename the exe)
+        let game_exe_name = if game_dir.join("Game.exe").exists() {
+            "Game.exe"
         } else if game_dir.join("GamePro.exe").exists() {
-            game_dir.join("GamePro.exe")
+            "GamePro.exe"
         } else {
-            // Find any .exe that might be the game
-            game_dir.join("Game.exe")
+            "Game.exe"
         };
 
-        let ps_script = format!(
-            "$ws = New-Object -ComObject WScript.Shell; \
-             $s = $ws.CreateShortcut('{}'); \
-             $s.TargetPath = '{}'; \
-             $s.Arguments = 'Test_Of_Main Use_Debug_Window'; \
-             $s.WorkingDirectory = '{}'; \
-             $s.Description = 'Wolf RPG Editor debug mode (F9=variables, F3=debug window, F10=pause)'; \
-             $s.Save()",
-            lnk_path.to_string_lossy().replace('\'', "''"),
-            game_exe.to_string_lossy().replace('\'', "''"),
-            game_dir.to_string_lossy().replace('\'', "''"),
-        );
+        if cfg!(target_os = "windows") {
+            let lnk_path = game_dir.join("Debug Mode.lnk");
+            let game_exe = game_dir.join(game_exe_name);
 
-        let output = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", &ps_script])
-            .output()
-            .map_err(|e| format!("Failed to run PowerShell: {e}"))?;
+            let ps_script = format!(
+                "$ws = New-Object -ComObject WScript.Shell; \
+                 $s = $ws.CreateShortcut('{}'); \
+                 $s.TargetPath = '{}'; \
+                 $s.Arguments = 'Test_Of_Main Use_Debug_Window'; \
+                 $s.WorkingDirectory = '{}'; \
+                 $s.Description = 'Wolf RPG Editor debug mode (F9=variables, F3=debug window, F10=pause)'; \
+                 $s.Save()",
+                lnk_path.to_string_lossy().replace('\'', "''"),
+                game_exe.to_string_lossy().replace('\'', "''"),
+                game_dir.to_string_lossy().replace('\'', "''"),
+            );
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Failed to create shortcut: {stderr}"));
+            let output = std::process::Command::new("powershell")
+                .args(["-NoProfile", "-Command", &ps_script])
+                .output()
+                .map_err(|e| format!("Failed to run PowerShell: {e}"))?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                return Err(format!("Failed to create shortcut: {stderr}"));
+            }
+
+            Ok(PatchInfo {
+                engine: "wolf-rpg-editor".into(),
+                game_dir: game_dir.to_string_lossy().to_string(),
+                patches: vec![PatchEntry {
+                    file_path: lnk_path.to_string_lossy().to_string(),
+                    action: PatchAction::Created,
+                    original_hash: None,
+                }],
+                applied_at: Local::now().to_rfc3339(),
+            })
+        } else {
+            let sh_path = game_dir.join("debug-mode.sh");
+
+            let script = format!(
+                "#!/bin/bash\n\
+                 cd \"$(dirname \"$0\")\"\n\
+                 if ! command -v wine &>/dev/null; then\n\
+                     echo \"Error: wine not found. Install Wine or adjust PATH.\" >&2\n\
+                     exit 1\n\
+                 fi\n\
+                 wine {game_exe_name} Test_Of_Main Use_Debug_Window\n"
+            );
+
+            fs::write(&sh_path, &script)
+                .map_err(|e| format!("Failed to write debug script: {e}"))?;
+
+            // Make script executable on Unix
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(&sh_path, fs::Permissions::from_mode(0o755))
+                    .map_err(|e| format!("Failed to set script permissions: {e}"))?;
+            }
+
+            Ok(PatchInfo {
+                engine: "wolf-rpg-editor".into(),
+                game_dir: game_dir.to_string_lossy().to_string(),
+                patches: vec![PatchEntry {
+                    file_path: sh_path.to_string_lossy().to_string(),
+                    action: PatchAction::Created,
+                    original_hash: None,
+                }],
+                applied_at: Local::now().to_rfc3339(),
+            })
         }
-
-        Ok(PatchInfo {
-            engine: "wolf-rpg-editor".into(),
-            game_dir: game_dir.to_string_lossy().to_string(),
-            patches: vec![PatchEntry {
-                file_path: lnk_path.to_string_lossy().to_string(),
-                action: PatchAction::Created,
-                original_hash: None,
-            }],
-            applied_at: Local::now().to_rfc3339(),
-        })
     }
 
     fn revert_debug_patch(&self, _game_dir: &Path, patch: &PatchInfo) -> Result<(), String> {

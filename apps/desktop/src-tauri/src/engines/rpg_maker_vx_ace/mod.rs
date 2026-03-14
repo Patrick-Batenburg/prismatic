@@ -1017,42 +1017,76 @@ impl EnginePlugin for RpgMakerVxaPlugin {
     }
 
     fn apply_debug_patch(&self, game_dir: &Path) -> Result<PatchInfo, String> {
-        let lnk_path = game_dir.join("Debug Mode.lnk");
-        let game_exe = game_dir.join("Game.exe");
+        if cfg!(target_os = "windows") {
+            let lnk_path = game_dir.join("Debug Mode.lnk");
+            let game_exe = game_dir.join("Game.exe");
 
-        let ps_script = format!(
-            "$ws = New-Object -ComObject WScript.Shell; \
-             $s = $ws.CreateShortcut('{}'); \
-             $s.TargetPath = '{}'; \
-             $s.Arguments = 'test console'; \
-             $s.WorkingDirectory = '{}'; \
-             $s.Description = 'Launch with debug mode (F9=variables, F8=console)'; \
-             $s.Save()",
-            lnk_path.to_string_lossy().replace('\'', "''"),
-            game_exe.to_string_lossy().replace('\'', "''"),
-            game_dir.to_string_lossy().replace('\'', "''"),
-        );
+            let ps_script = format!(
+                "$ws = New-Object -ComObject WScript.Shell; \
+                 $s = $ws.CreateShortcut('{}'); \
+                 $s.TargetPath = '{}'; \
+                 $s.Arguments = 'test console'; \
+                 $s.WorkingDirectory = '{}'; \
+                 $s.Description = 'Launch with debug mode (F9=variables, F8=console)'; \
+                 $s.Save()",
+                lnk_path.to_string_lossy().replace('\'', "''"),
+                game_exe.to_string_lossy().replace('\'', "''"),
+                game_dir.to_string_lossy().replace('\'', "''"),
+            );
 
-        let output = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", &ps_script])
-            .output()
-            .map_err(|e| format!("Failed to run PowerShell: {e}"))?;
+            let output = std::process::Command::new("powershell")
+                .args(["-NoProfile", "-Command", &ps_script])
+                .output()
+                .map_err(|e| format!("Failed to run PowerShell: {e}"))?;
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Failed to create shortcut: {stderr}"));
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                return Err(format!("Failed to create shortcut: {stderr}"));
+            }
+
+            Ok(PatchInfo {
+                engine: "rpg-maker-vx-ace".into(),
+                game_dir: game_dir.to_string_lossy().to_string(),
+                patches: vec![PatchEntry {
+                    file_path: lnk_path.to_string_lossy().to_string(),
+                    action: PatchAction::Created,
+                    original_hash: None,
+                }],
+                applied_at: Local::now().to_rfc3339(),
+            })
+        } else {
+            let sh_path = game_dir.join("debug-mode.sh");
+
+            let script = "#!/bin/bash\n\
+                 cd \"$(dirname \"$0\")\"\n\
+                 if ! command -v wine &>/dev/null; then\n\
+                     echo \"Error: wine not found. Install Wine or adjust PATH.\" >&2\n\
+                     exit 1\n\
+                 fi\n\
+                 wine Game.exe test console\n";
+
+            fs::write(&sh_path, script)
+                .map_err(|e| format!("Failed to write debug script: {e}"))?;
+
+            // Make script executable on Unix
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(&sh_path, fs::Permissions::from_mode(0o755))
+                    .map_err(|e| format!("Failed to set script permissions: {e}"))?;
+            }
+
+            Ok(PatchInfo {
+                engine: "rpg-maker-vx-ace".into(),
+                game_dir: game_dir.to_string_lossy().to_string(),
+                patches: vec![PatchEntry {
+                    file_path: sh_path.to_string_lossy().to_string(),
+                    action: PatchAction::Created,
+                    original_hash: None,
+                }],
+                applied_at: Local::now().to_rfc3339(),
+            })
         }
-
-        Ok(PatchInfo {
-            engine: "rpg-maker-vx-ace".into(),
-            game_dir: game_dir.to_string_lossy().to_string(),
-            patches: vec![PatchEntry {
-                file_path: lnk_path.to_string_lossy().to_string(),
-                action: PatchAction::Created,
-                original_hash: None,
-            }],
-            applied_at: Local::now().to_rfc3339(),
-        })
     }
 
     fn revert_debug_patch(&self, _game_dir: &Path, patch: &PatchInfo) -> Result<(), String> {
