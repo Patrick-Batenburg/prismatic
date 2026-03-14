@@ -49,7 +49,8 @@
         "rust-lang.rust-analyzer",
         "svelte.svelte-vscode",
         "tamasfe.even-better-toml",
-        "tauri-apps.tauri-vscode"
+        "tauri-apps.tauri-vscode",
+        "github.vscode-github-actions"
       ],
       "settings": {
         "editor.formatOnSave": true,

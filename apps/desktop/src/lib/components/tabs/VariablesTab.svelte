@@ -16,7 +16,7 @@
   let filterGroup = $state<string | null>(null);
   let showUnnamed = $state(true);
 
-  let groups = $derived(
+  const groups = $derived(
     (() => {
       const g: string[] = [];
       variables.forEach((v) => {
@@ -28,7 +28,7 @@
     })(),
   );
 
-  let filtered = $derived(
+  const filtered = $derived(
     (() => {
       let list = variables;
       if (!showUnnamed) list = list.filter((v) => v.name);
@@ -38,7 +38,7 @@
         list = list.filter(
           (v) =>
             v.id.toString().includes(q) ||
-            (v.name && v.name.toLowerCase().includes(q)) ||
+            v.name?.toLowerCase().includes(q) === true ||
             JSON.stringify(v.value).toLowerCase().includes(q),
         );
       }
@@ -65,15 +65,21 @@
       ["variables", String(arrayIdx), "value"],
       oldValue,
       newValue,
-      `Set variable "${variable.name || variable.id}" to ${newValue}`,
+      `Set variable "${variable.name ?? variable.id}" to ${newValue}`,
     );
     markModified(`variables.${arrayIdx}`);
   }
 
   function handleBatchAction(action: string, selectedIds: Set<string>, value?: string) {
     const changes: Change[] = [];
-    const targetValue =
-      action === "reset_to_zero" ? 0 : value ? (isNaN(Number(value)) ? value : Number(value)) : 0;
+    let targetValue: string | number;
+    if (action === "reset_to_zero") {
+      targetValue = 0;
+    } else if (value) {
+      targetValue = isNaN(Number(value)) ? value : Number(value);
+    } else {
+      targetValue = 0;
+    }
 
     for (let i = 0; i < variables.length; i++) {
       if (!selectedIds.has(String(variables[i].id))) continue;
@@ -142,14 +148,15 @@
         />
       {/if}
       <span class="col-id">{variable.id}</span>
-      <span class="col-name" title={variable.name || `Variable #${variable.id}`}>
-        {variable.name || `#${variable.id}`}
+      <span class="col-name" title={variable.name ?? `Variable #${variable.id}`}>
+        {variable.name ?? `#${variable.id}`}
       </span>
       <input
         class="col-value"
         type="text"
         value={JSON.stringify(variable.value)}
-        onchange={(e) => updateValue(variable, (e.target as HTMLInputElement).value, idx)}
+        onchange={(e: Event & { currentTarget: HTMLInputElement }) =>
+          updateValue(variable, e.currentTarget.value, idx)}
       />
     </div>
   {/each}

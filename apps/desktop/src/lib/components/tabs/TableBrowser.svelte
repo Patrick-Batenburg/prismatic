@@ -4,9 +4,9 @@
   import { preferencesStore } from "$lib/preferences";
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
 
-  let { tables }: { tables: TableMeta[] } = $props();
+  const { tables }: { tables: TableMeta[] } = $props();
 
-  let pageSize = $derived($preferencesStore.tablePageSize);
+  const pageSize = $derived($preferencesStore.tablePageSize);
 
   let selectedTable = $state<string | null>(null);
   let columns = $state<string[]>([]);
@@ -16,18 +16,18 @@
   let loading = $state(false);
   let editingCell = $state<{ rowIdx: number; colIdx: number } | null>(null);
   let editValue = $state("");
-  let changes = new SvelteMap<string, CellChange>();
-  let selectedRowids = new SvelteSet<number>();
+  const changes = new SvelteMap<string, CellChange>();
+  const selectedRowids = new SvelteSet<number>();
 
-  let totalPages = $derived(Math.max(1, Math.ceil(totalRows / pageSize)));
-  let changeCount = $derived(changes.size);
+  const totalPages = $derived(Math.max(1, Math.ceil(totalRows / pageSize)));
+  const changeCount = $derived(changes.size);
 
   // Display columns: skip the first column (rowid)
-  let displayColumns = $derived(columns.slice(1));
+  const displayColumns = $derived(columns.slice(1));
 
   $effect(() => {
     if (tables.length > 0 && !selectedTable) {
-      selectTable(tables[0].name);
+      void selectTable(tables[0].name);
     }
   });
 
@@ -66,7 +66,7 @@
   function startEdit(rowIdx: number, colIdx: number) {
     const displayColIdx = colIdx;
     const actualColIdx = colIdx + 1; // skip rowid
-    const rowid = rows[rowIdx].values[0] as number;
+    const rowid = Number(rows[rowIdx].values[0]);
     const colName = columns[actualColIdx];
     const key = `${selectedTable}:${rowid}:${colName}`;
 
@@ -81,7 +81,7 @@
     if (!editingCell || !selectedTable) return;
     const { rowIdx, colIdx } = editingCell;
     const actualColIdx = colIdx + 1;
-    const rowid = rows[rowIdx].values[0] as number;
+    const rowid = Number(rows[rowIdx].values[0]);
     const colName = columns[actualColIdx];
     const originalValue = rows[rowIdx].values[actualColIdx];
     const parsed = parseValue(editValue);
@@ -246,7 +246,7 @@
           </thead>
           <tbody>
             {#each rows as row, rowIdx (row.values[0])}
-              {@const rowid = row.values[0] as number}
+              {@const rowid = Number(row.values[0])}
               <tr class:row-selected={selectedRowids.has(rowid)}>
                 <td class="checkbox-col">
                   <input
@@ -260,7 +260,7 @@
                     class:changed={isCellChanged(rowIdx, colIdx)}
                     onclick={() => startEdit(rowIdx, colIdx)}
                   >
-                    {#if editingCell && editingCell.rowIdx === rowIdx && editingCell.colIdx === colIdx}
+                    {#if editingCell?.rowIdx === rowIdx && editingCell.colIdx === colIdx}
                       <input
                         class="cell-edit"
                         type="text"

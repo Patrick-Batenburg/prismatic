@@ -1,7 +1,7 @@
 <script lang="ts">
   import { preferencesStore, setPreferences } from "$lib/preferences";
 
-  let prefs = $derived($preferencesStore);
+  const prefs = $derived($preferencesStore);
 
   const COLOR_PRESETS = [
     { name: "Purple", hex: "#6c5ce7" },
@@ -18,7 +18,7 @@
 
   // eslint-disable-next-line svelte/prefer-writable-derived -- intentional: bound to input, reset on blur
   let customHex = $state("");
-  let isCustomColor = $derived(!COLOR_PRESETS.some((p) => p.hex === prefs.accentColor));
+  const isCustomColor = $derived(!COLOR_PRESETS.some((p) => p.hex === prefs.accentColor));
   let showCustomInput = $state(false);
 
   $effect(() => {
@@ -114,7 +114,8 @@
     </div>
     <select
       value={prefs.appFont}
-      onchange={(e) => setPreferences({ appFont: (e.target as HTMLSelectElement).value })}
+      onchange={(e: Event & { currentTarget: HTMLSelectElement }) =>
+        setPreferences({ appFont: e.currentTarget.value })}
     >
       {#each APP_FONTS as font (font)}
         <option value={font}>{font === "system-default" ? "System Default" : font}</option>
@@ -129,7 +130,8 @@
     </div>
     <select
       value={prefs.monoFont}
-      onchange={(e) => setPreferences({ monoFont: (e.target as HTMLSelectElement).value })}
+      onchange={(e: Event & { currentTarget: HTMLSelectElement }) =>
+        setPreferences({ monoFont: e.currentTarget.value })}
     >
       {#each MONO_FONTS as font (font)}
         <option value={font}>{font}</option>

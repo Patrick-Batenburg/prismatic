@@ -2,15 +2,15 @@
   import { preferencesStore, setPreferences, DEFAULT_KEYBINDINGS } from "$lib/preferences";
   import { eventToCombo, isReserved, ACTION_LABELS } from "$lib/keybindings";
 
-  let prefs = $derived($preferencesStore);
-  let bindings = $derived(prefs.keybindings);
+  const prefs = $derived($preferencesStore);
+  const bindings = $derived(prefs.keybindings);
 
   let recordingAction = $state<string | null>(null);
   let reservedWarning = $state(false);
   let lastAttempt = $state("");
 
   // Find conflicts: actions sharing the same combo
-  let conflicts = $derived(
+  const conflicts = $derived(
     (() => {
       // eslint-disable-next-line svelte/prefer-svelte-reactivity -- pure derived computation
       const map = new Map<string, string[]>();

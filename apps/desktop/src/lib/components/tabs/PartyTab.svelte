@@ -11,6 +11,7 @@
   import type { Change } from "$lib/stores/history";
   import BatchToolbar from "$lib/components/BatchToolbar.svelte";
 
+  /* eslint-disable prefer-const -- Svelte $bindable() requires let destructuring */
   let {
     party = $bindable(),
     currency = $bindable(),
@@ -20,11 +21,11 @@
     currency: CurrencyInfo | null;
     nameMap: NameMap | null;
   } = $props();
+  /* eslint-enable prefer-const */
 
   function getEquipOptions(dataClass: string): { id: number; name: string }[] {
     if (!nameMap) return [];
     const map = dataClass === "weapon" ? nameMap.weapons : nameMap.armors;
-    if (!map) return [];
     return Object.entries(map)
       .map(([id, name]) => ({ id: Number(id), name }))
       .sort((a, b) => a.id - b.id);
@@ -40,9 +41,9 @@
     const id = Number(value);
     eq.item_id = id || null;
     // Update the displayed name from nameMap
-    if (id && nameMap) {
+    if (id !== 0 && nameMap) {
       const map = eq.data_class === "weapon" ? nameMap.weapons : nameMap.armors;
-      eq.item_name = map?.[id] ?? null;
+      eq.item_name = map[id] ?? null;
     } else {
       eq.item_name = null;
     }
@@ -50,7 +51,7 @@
       ["party", String(charIdx), "equips", String(eqIdx), "item_id"],
       oldId,
       eq.item_id,
-      `Set ${eq.slot_name} to ${eq.item_name || "None"}`,
+      `Set ${eq.slot_name} to ${eq.item_name ?? "None"}`,
     );
     markModified(`party.${charIdx}.equips.${eqIdx}`);
   }
@@ -277,7 +278,7 @@
                 </select>
               {:else}
                 <span class="equip-name"
-                  >{eq.item_name || (eq.item_id ? `#${eq.item_id}` : "—")}</span
+                  >{eq.item_name ?? (eq.item_id !== null ? `#${eq.item_id}` : "—")}</span
                 >
               {/if}
             </div>

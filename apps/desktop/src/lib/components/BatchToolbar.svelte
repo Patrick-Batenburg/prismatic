@@ -7,12 +7,12 @@
     onapply: (action: string, selectedIds: Set<string>, value?: string) => void;
   }
 
-  let { items, actions, onapply }: Props = $props();
+  const { items, actions, onapply }: Props = $props();
   let selectedAction = $state("");
   let promptValue = $state("");
 
   // Actions ending with '...' need a value input
-  let needsValue = $derived(
+  const needsValue = $derived(
     actions.find((a) => a.value === selectedAction)?.label.endsWith("...") ?? false,
   );
 

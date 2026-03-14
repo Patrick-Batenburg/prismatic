@@ -1,6 +1,7 @@
 <script lang="ts">
   import JsonNode from "./JsonNode.svelte";
 
+  /* eslint-disable prefer-const -- Svelte $bindable() requires let destructuring */
   let {
     key,
     value,
@@ -8,12 +9,10 @@
     search = "",
     expandAll = false,
     matchCount = $bindable(0),
-    filterFn = undefined as ((key: string, value: unknown) => boolean) | undefined,
-    path = [] as string[],
-    onedit = undefined as
-      | ((path: string[], oldValue: unknown, newValue: unknown) => void)
-      | undefined,
-    editController = undefined as { register: (commit: () => void) => void } | undefined,
+    filterFn = undefined,
+    path = [],
+    onedit = undefined,
+    editController = undefined,
   }: {
     key: string;
     value: unknown;
@@ -26,6 +25,7 @@
     onedit?: ((path: string[], oldValue: unknown, newValue: unknown) => void) | undefined;
     editController?: { register: (commit: () => void) => void } | undefined;
   } = $props();
+  /* eslint-enable prefer-const */
 
   // Capture initial depth (not reactive — intentional, depth is fixed per instance)
   // svelte-ignore state_referenced_locally
@@ -40,26 +40,27 @@
     if (!expandAll && initialDepth > 0) expanded = false;
   });
 
-  let isObject = $derived(value !== null && typeof value === "object" && !Array.isArray(value));
-  let isArray = $derived(Array.isArray(value));
-  let isExpandable = $derived(isObject || isArray);
+  const isObject = $derived(value !== null && typeof value === "object" && !Array.isArray(value));
+  const isArray = $derived(Array.isArray(value));
+  const isExpandable = $derived(isObject || isArray);
 
-  let childEntries = $derived.by(() => {
-    let entries: [string, unknown][] = isObject
-      ? Object.entries(value as Record<string, unknown>)
-      : isArray
-        ? (value as unknown[]).map((v, i) => [String(i), v])
-        : [];
+  const childEntries = $derived.by(() => {
+    let entries: [string, unknown][] = [];
+    if (isObject && value !== null && typeof value === "object") {
+      entries = Object.entries(value);
+    } else if (isArray && Array.isArray(value)) {
+      entries = value.map((v, i) => [String(i), v]);
+    }
     if (filterFn) {
       entries = entries.filter(([k, v]) => filterFn!(k, v));
     }
     return entries;
   });
 
-  let childCount = $derived(childEntries.length);
+  const childCount = $derived(childEntries.length);
 
   // Search match — only check this node's key/value, not descendants
-  let isMatch = $derived(
+  const isMatch = $derived(
     (() => {
       if (!search) return false;
       const q = search.toLowerCase();
@@ -70,7 +71,7 @@
   );
 
   // When searching, auto-expand nodes that contain matches
-  let hasDescendantMatch = $derived.by(() => {
+  const hasDescendantMatch = $derived.by(() => {
     if (!search) return false;
     if (!isExpandable) return false;
     // Quick string check on JSON.stringify is much faster than recursive component rendering
@@ -79,7 +80,7 @@
   });
 
   // Search-driven visibility: if searching, only render children that might match
-  let visibleChildren = $derived.by(() => {
+  const visibleChildren = $derived.by(() => {
     if (!search) return childEntries;
     const q = search.toLowerCase();
     return childEntries.filter(([k, v]) => {

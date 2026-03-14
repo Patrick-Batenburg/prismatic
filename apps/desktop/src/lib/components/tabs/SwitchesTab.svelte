@@ -15,7 +15,7 @@
   let search = $state("");
   let filterState = $state<"all" | "on" | "off">("all");
 
-  let filtered = $derived(
+  const filtered = $derived(
     (() => {
       let list = switches;
       if (filterState === "on") list = list.filter((s) => s.value);
@@ -23,7 +23,7 @@
       if (search) {
         const q = search.toLowerCase();
         list = list.filter(
-          (s) => s.id.toString().includes(q) || (s.name && s.name.toLowerCase().includes(q)),
+          (s) => s.id.toString().includes(q) || s.name?.toLowerCase().includes(q) === true,
         );
       }
       return list;
@@ -39,7 +39,7 @@
       ["switches", String(arrayIdx), "value"],
       oldValue,
       sw.value,
-      `Toggle switch "${sw.name || sw.id}" ${sw.value ? "ON" : "OFF"}`,
+      `Toggle switch "${sw.name ?? sw.id}" ${sw.value ? "ON" : "OFF"}`,
     );
     markModified(`switches.${arrayIdx}`);
   }
@@ -50,7 +50,10 @@
     for (let i = 0; i < switches.length; i++) {
       if (!selectedIds.has(String(switches[i].id))) continue;
       const oldVal = switches[i].value;
-      const newVal = action === "turn_all_on" ? true : action === "turn_all_off" ? false : !oldVal;
+      let newVal: boolean;
+      if (action === "turn_all_on") newVal = true;
+      else if (action === "turn_all_off") newVal = false;
+      else newVal = !oldVal;
       if (oldVal !== newVal) {
         changes.push({
           path: ["switches", String(i), "value"],
@@ -111,7 +114,7 @@
         />
       {/if}
       <span class="col-id">{sw.id}</span>
-      <span class="col-name">{sw.name || `#${sw.id}`}</span>
+      <span class="col-name">{sw.name ?? `#${sw.id}`}</span>
       <button
         class="col-toggle toggle-btn"
         class:on={sw.value}

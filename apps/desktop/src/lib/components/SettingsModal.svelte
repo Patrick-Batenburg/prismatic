@@ -4,7 +4,7 @@
   import EditorSettings from "./settings/EditorSettings.svelte";
   import KeyboardSettings from "./settings/KeyboardSettings.svelte";
 
-  let { onclose }: { onclose: () => void } = $props();
+  const { onclose }: { onclose: () => void } = $props();
 
   const categories = [
     { id: "general", label: "General" },

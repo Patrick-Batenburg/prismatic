@@ -17,11 +17,11 @@
     onclose: () => void;
   }
 
-  let { base, compare, baseName, compareName, onclose }: Props = $props();
+  const { base, compare, baseName, compareName, onclose }: Props = $props();
   let showUnchanged = $state(getPreferences().showUnchangedDefault);
 
   // Only show tabs that have data in at least one save
-  let availableSections = $derived(
+  const availableSections = $derived(
     (() => {
       const sections: { id: string; label: string }[] = [];
       if (base.party || compare.party) sections.push({ id: "party", label: "Party" });
@@ -43,10 +43,10 @@
     }
   });
 
-  let partyDiffs = $derived(computePartyDiffs(base.party, compare.party));
-  let variableDiffs = $derived(computeVariableDiffs(base.variables, compare.variables));
-  let switchDiffs = $derived(computeSwitchDiffs(base.switches, compare.switches));
-  let rawDiffLines = $derived(computeRawDiff(base.raw, compare.raw));
+  const partyDiffs = $derived(computePartyDiffs(base.party, compare.party));
+  const variableDiffs = $derived(computeVariableDiffs(base.variables, compare.variables));
+  const switchDiffs = $derived(computeSwitchDiffs(base.switches, compare.switches));
+  const rawDiffLines = $derived(computeRawDiff(base.raw, compare.raw));
 
   function computePartyDiffs(
     a: Character[] | null,
@@ -95,9 +95,10 @@
             status: "changed",
           });
         for (let s = 0; s < Math.max(charA.stats.length, charB.stats.length); s++) {
+          if (s >= charA.stats.length || s >= charB.stats.length) continue;
           const sa = charA.stats[s],
             sb = charB.stats[s];
-          if (sa && sb && (sa.current !== sb.current || sa.max !== sb.max)) {
+          if (sa.current !== sb.current || sa.max !== sb.max) {
             fields.push({
               label: sa.label,
               baseVal: `${sa.current}/${sa.max}`,
@@ -122,28 +123,28 @@
         vb = mapB.get(id);
       if (!va && vb)
         diffs.push({
-          label: vb.name || `#${id}`,
+          label: vb.name ?? `#${id}`,
           baseVal: null,
           compareVal: vb.value,
           status: "added",
         });
       else if (va && !vb)
         diffs.push({
-          label: va.name || `#${id}`,
+          label: va.name ?? `#${id}`,
           baseVal: va.value,
           compareVal: null,
           status: "removed",
         });
       else if (va && vb && va.value !== vb.value)
         diffs.push({
-          label: va.name || `#${id}`,
+          label: va.name ?? `#${id}`,
           baseVal: va.value,
           compareVal: vb.value,
           status: "changed",
         });
       else if (va && vb)
         diffs.push({
-          label: va.name || `#${id}`,
+          label: va.name ?? `#${id}`,
           baseVal: va.value,
           compareVal: vb.value,
           status: "unchanged",
@@ -162,28 +163,28 @@
         sb = mapB.get(id);
       if (!sa && sb)
         diffs.push({
-          label: sb.name || `#${id}`,
+          label: sb.name ?? `#${id}`,
           baseVal: null,
           compareVal: sb.value ? "ON" : "OFF",
           status: "added",
         });
       else if (sa && !sb)
         diffs.push({
-          label: sa.name || `#${id}`,
+          label: sa.name ?? `#${id}`,
           baseVal: sa.value ? "ON" : "OFF",
           compareVal: null,
           status: "removed",
         });
       else if (sa && sb && sa.value !== sb.value)
         diffs.push({
-          label: sa.name || `#${id}`,
+          label: sa.name ?? `#${id}`,
           baseVal: sa.value ? "ON" : "OFF",
           compareVal: sb.value ? "ON" : "OFF",
           status: "changed",
         });
       else if (sa && sb)
         diffs.push({
-          label: sa.name || `#${id}`,
+          label: sa.name ?? `#${id}`,
           baseVal: sa.value ? "ON" : "OFF",
           compareVal: sb.value ? "ON" : "OFF",
           status: "unchanged",
@@ -238,12 +239,16 @@
 
     function diff(
       a: string[],
-      aStart: number,
-      aEnd: number,
+      aStartParam: number,
+      aEndParam: number,
       b: string[],
-      bStart: number,
-      bEnd: number,
+      bStartParam: number,
+      bEndParam: number,
     ): Edit[] {
+      let aStart = aStartParam;
+      let aEnd = aEndParam;
+      let bStart = bStartParam;
+      let bEnd = bEndParam;
       const edits: Edit[] = [];
 
       // Skip common prefix
@@ -289,7 +294,7 @@
         for (const [line, aIndices] of uniqueA) {
           if (aIndices.length !== 1) continue;
           const bIndices = uniqueB.get(line);
-          if (!bIndices || bIndices.length !== 1) continue;
+          if (bIndices?.length !== 1) continue;
           matches.push({ ai: aIndices[0], bi: bIndices[0] });
         }
 
@@ -542,7 +547,7 @@
                   status: "changed" as const,
                 };
               return {
-                label: a?.name || `#${id}`,
+                label: a?.name ?? `#${id}`,
                 baseVal: a?.quantity,
                 compareVal: b?.quantity,
                 status: "unchanged" as const,

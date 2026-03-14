@@ -15,7 +15,7 @@
   let search = $state("");
   let activeSection = $state<"items" | "weapons" | "armors">("items");
 
-  let filteredItems = $derived(
+  const filteredItems = $derived(
     (() => {
       const list = inventory[activeSection];
       if (!search) return list;

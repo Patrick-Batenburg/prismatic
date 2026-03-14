@@ -1,3 +1,3 @@
 import { createConfig } from "@prismatic/eslint-config";
 
-export default createConfig();
+export default createConfig({ tsconfigPath: "./tsconfig.json" });

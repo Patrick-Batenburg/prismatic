@@ -27,7 +27,10 @@ export function createConfig({ tsconfigPath } = {}) {
         parser: svelteParser,
         parserOptions: {
           parser: tseslint.parser,
-          ...(tsconfigPath && { project: tsconfigPath }),
+          ...(tsconfigPath && {
+            project: tsconfigPath,
+            extraFileExtensions: [".svelte"],
+          }),
         },
       },
     },
@@ -42,12 +45,34 @@ export function createConfig({ tsconfigPath } = {}) {
     },
     {
       rules: {
+        // TypeScript
         "@typescript-eslint/no-unused-vars": [
           "error",
           { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
         ],
         "@typescript-eslint/no-explicit-any": "error",
+        "@typescript-eslint/consistent-type-assertions": [
+          "error",
+          { assertionStyle: "never" },
+        ],
+        "@typescript-eslint/consistent-type-imports": [
+          "error",
+          { prefer: "type-imports", fixStyle: "inline-type-imports" },
+        ],
+        "@typescript-eslint/naming-convention": [
+          "error",
+          { selector: "typeLike", format: ["PascalCase"] },
+        ],
+
+        // Core JS
+        eqeqeq: ["error", "always"],
+        "prefer-const": "error",
+        "no-param-reassign": ["error", { props: false }],
+        "no-nested-ternary": "error",
+        "max-depth": ["error", 4],
         "no-console": ["error", { allow: ["warn", "error"] }],
+
+        // Svelte
         "svelte/no-at-html-tags": "error",
         "svelte/require-each-key": "error",
         "svelte/no-navigation-without-resolve": "off",
@@ -55,6 +80,34 @@ export function createConfig({ tsconfigPath } = {}) {
         "svelte/prefer-svelte-reactivity": "error",
       },
     },
+    // Type-aware rules (require tsconfig project)
+    ...(tsconfigPath
+      ? [
+          {
+            files: ["**/*.ts", "**/*.svelte"],
+            rules: {
+              "@typescript-eslint/prefer-nullish-coalescing": "error",
+              "@typescript-eslint/prefer-optional-chain": "error",
+              "@typescript-eslint/switch-exhaustiveness-check": "error",
+              "@typescript-eslint/no-unnecessary-condition": "error",
+              "@typescript-eslint/strict-boolean-expressions": [
+                "error",
+                {
+                  allowNullableBoolean: true,
+                  allowNullableString: true,
+                  allowNullableNumber: false,
+                  allowNullableObject: true,
+                },
+              ],
+              "@typescript-eslint/no-floating-promises": "error",
+              "@typescript-eslint/no-misused-promises": [
+                "error",
+                { checksVoidReturn: { attributes: false } },
+              ],
+            },
+          },
+        ]
+      : []),
     {
       ignores: [
         "**/node_modules/**",

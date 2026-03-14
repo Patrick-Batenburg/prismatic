@@ -3,7 +3,7 @@
   import { trackEdit } from "$lib/stores";
   import { getPreferences } from "$lib/preferences";
 
-  let { data, engineId = "" }: { data: unknown; engineId?: string } = $props();
+  const { data, engineId = "" }: { data: unknown; engineId?: string } = $props();
 
   function handleRawEdit(path: string[], oldValue: unknown, newValue: unknown) {
     trackEdit(["raw", ...path], oldValue, newValue, `Edit raw field ${path.join(".")}`);
@@ -24,14 +24,16 @@
   };
 
   // Ren'Py-specific filters
-  let isRenpy = $derived(engineId === "renpy");
-  let hideRenpyDialogs = $state(true);
-  let hideRenpyVars = $state(true);
+  const isRenpy = $derived(engineId === "renpy");
+  let hideRenpyDialogs: boolean = $state(true);
+  let hideRenpyVars: boolean = $state(true);
 
   // Debounce search input — prevents freezing on large JSON trees
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
   function onSearchInput(e: Event) {
-    const val = (e.target as HTMLInputElement).value;
+    const target = e.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const val = target.value;
     searchInput = val;
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
@@ -40,11 +42,20 @@
     }, getPreferences().searchDebounce);
   }
 
+  function getClassName(value: object): string | undefined {
+    if ("__class__" in value) {
+      const cls: unknown = value.__class__;
+      if (typeof cls === "string") return cls;
+    }
+    return undefined;
+  }
+
   // "Hide Dialogs": any store.* entry that is a complex object with a __class__
   // These are game event trees, quest nodes, gallery entries, dialog objects, etc.
   function isRenpyDialog(_key: string, value: unknown): boolean {
-    if (typeof value !== "object" || value === null || !("__class__" in value)) return false;
-    const cls: string = (value as Record<string, string>).__class__;
+    if (typeof value !== "object" || value === null) return false;
+    const cls = getClassName(value);
+    if (!cls) return false;
     // Any store.* class that's an event/dialog/quest/gallery/root object
     if (cls.startsWith("store.")) return true;
     // renpy display/layout objects
@@ -64,18 +75,21 @@
     // __class__, __version__ and other dunder keys inside objects
     if (key.startsWith("__") && key.endsWith("__")) return true;
     // The rollback log object (item [1] in _save_data array)
-    if (typeof value === "object" && value !== null && "__class__" in value) {
-      const cls: string = (value as Record<string, string>).__class__;
-      if (cls.startsWith("renpy.")) return true;
+    if (typeof value === "object" && value !== null) {
+      const cls = getClassName(value);
+      if (cls?.startsWith("renpy.")) return true;
     }
     return false;
   }
 
-  let filterFn = $derived.by(() => {
+  const filterFn = $derived.by(() => {
     if (!isRenpy) return undefined;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- reactive $state toggled via bind:checked
     if (!hideRenpyDialogs && !hideRenpyVars) return undefined;
     return (key: string, value: unknown): boolean => {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- reactive $state toggled via bind:checked
       if (hideRenpyDialogs && isRenpyDialog(key, value)) return false;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- reactive $state toggled via bind:checked
       if (hideRenpyVars && isRenpyInternal(key, value)) return false;
       return true;
     };

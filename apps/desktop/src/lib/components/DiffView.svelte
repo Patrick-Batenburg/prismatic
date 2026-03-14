@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { DiffEntry, NameMap } from "$lib/api";
 
-  let {
+  const {
     entries,
     onclose,
     nameMap = null,
@@ -114,7 +114,7 @@
     return path;
   }
 
-  let filtered = $derived(
+  const filtered = $derived(
     (() => {
       if (!search) return entries;
       const q = search.toLowerCase();

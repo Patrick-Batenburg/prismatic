@@ -1,7 +1,7 @@
 <script lang="ts">
   import { preferencesStore, setPreferences } from "$lib/preferences";
 
-  let prefs = $derived($preferencesStore);
+  const prefs = $derived($preferencesStore);
 
   // eslint-disable-next-line svelte/prefer-writable-derived -- intentional: bound to input, validated on blur
   let depthInput = $state("");
@@ -48,8 +48,8 @@
     </div>
     <select
       value={prefs.searchDebounce}
-      onchange={(e) =>
-        setPreferences({ searchDebounce: Number((e.target as HTMLSelectElement).value) })}
+      onchange={(e: Event & { currentTarget: HTMLSelectElement }) =>
+        setPreferences({ searchDebounce: Number(e.currentTarget.value) })}
     >
       <option value={200}>200ms</option>
       <option value={400}>400ms</option>
