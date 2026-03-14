@@ -1,7 +1,14 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { api, type SaveFile, type SaveData, type DiffEntry, type BackupEntry } from "$lib/api";
-  import SaveComparison from '$lib/components/SaveComparison.svelte';
+  import {
+    api,
+    type SaveFile,
+    type SaveData,
+    type DiffEntry,
+    type BackupEntry,
+    type TableMeta,
+  } from "$lib/api";
+  import SaveComparison from "$lib/components/SaveComparison.svelte";
   import {
     currentEngine,
     currentGameDir,
@@ -9,13 +16,12 @@
     currentSave,
     currentSavePath,
     nameMap,
-    statusMessage,
+    setStatus,
     addToast,
     activePatch,
     modifiedFields,
     history,
     batchMode,
-    batchSelected,
     clearBatchSelection,
   } from "$lib/stores";
   import type { Change } from "$lib/stores/history";
@@ -28,14 +34,22 @@
   import TableBrowser from "$lib/components/tabs/TableBrowser.svelte";
   import DiffView from "$lib/components/DiffView.svelte";
   import SaveFolderPicker from "$lib/components/SaveFolderPicker.svelte";
+  import { preferencesStore } from "$lib/preferences";
+  import { matchesCombo } from "$lib/keybindings";
 
-  let engine = $derived($currentEngine);
-  let gameDir = $derived($currentGameDir);
-  let saveList = $derived($saves);
-  let save = $derived($currentSave);
-  let savePath = $derived($currentSavePath);
-  let patch = $derived($activePatch);
-  let names = $derived($nameMap);
+  const engine = $derived($currentEngine);
+  const gameDir = $derived($currentGameDir);
+  const saveList = $derived($saves);
+  // Use $state instead of $derived so save data is deeply proxied.
+  // This ensures in-place mutations (e.g. batch edits) trigger reactivity.
+  // eslint-disable-next-line svelte/prefer-writable-derived -- intentional: $derived doesn't deep-proxy
+  let save = $state<SaveData | null>(null);
+  $effect(() => {
+    save = $currentSave;
+  });
+  const savePath = $derived($currentSavePath);
+  const patch = $derived($activePatch);
+  const names = $derived($nameMap);
 
   let activeTab = $state("party");
   let loading = $state(false);
@@ -46,13 +60,19 @@
   let showFlashPicker = $state(false);
   let showComparison = $state(false);
   let comparisonData = $state<SaveData | null>(null);
-  let comparisonName = $state('');
+  let comparisonName = $state("");
+
+  // SQLite table metadata (raw field is TableMeta[] when engine is sqlite)
+  const sqliteTables = $derived.by((): TableMeta[] => {
+    if (!save || !Array.isArray(save.raw)) return [];
+    return save.raw;
+  });
 
   // Available tabs based on save data
-  let tabs = $derived(
+  const tabs = $derived(
     (() => {
       const t: { id: string; label: string; available: boolean }[] = [
-        { id: "party", label: "Party", available: !!(save?.party || save?.currency) },
+        { id: "party", label: "Party", available: !!(save?.party ?? save?.currency) },
         { id: "inventory", label: "Inventory", available: !!save?.inventory },
         { id: "variables", label: "Variables", available: !!save?.variables },
         { id: "switches", label: "Switches", available: !!save?.switches },
@@ -64,10 +84,10 @@
 
   $effect(() => {
     if (!engine || !gameDir) {
-      goto("/");
+      void goto("/");
       return;
     }
-    loadSaves();
+    void loadSaves();
   });
 
   async function loadSaves() {
@@ -94,7 +114,7 @@
       currentSavePath.set(sf.path);
       modifiedFields.set(new Set());
       history.clear();
-      statusMessage.set(`${engine?.name} — ${sf.name}`);
+      setStatus(`Loaded ${sf.name}`, "success");
 
       // Auto-select first available tab
       if (tabs.length > 0 && !tabs.find((t) => t.id === activeTab)) {
@@ -111,7 +131,7 @@
     if (!savePath || !save) return;
     try {
       const msg = await api.saveFile(savePath, save);
-      addToast(msg, "success");
+      setStatus(msg, "success");
       modifiedFields.set(new Set());
     } catch (e) {
       addToast(`Save failed: ${e}`, "error");
@@ -125,7 +145,7 @@
       if (diffEntries.length > 0) {
         showDiff = true;
       } else {
-        addToast("No changes detected", "info");
+        setStatus("No changes detected", "info");
       }
       // Reload the save
       const data = await api.loadSave(savePath);
@@ -143,11 +163,11 @@
       if (patch) {
         await api.revertDebugPatch(patch);
         activePatch.set(null);
-        addToast("Debug mode reverted", "success");
+        setStatus("Debug mode reverted", "success");
       } else {
         const p = await api.applyDebugPatch();
         activePatch.set(p);
-        addToast("Debug mode enabled", "success");
+        setStatus("Debug mode enabled", "success");
       }
     } catch (e) {
       addToast(`Debug patch failed: ${e}`, "error");
@@ -168,7 +188,7 @@
     if (!savePath) return;
     try {
       await api.restoreBackup(backup.path, savePath);
-      addToast("Backup restored", "success");
+      setStatus("Backup restored", "success");
       showBackups = false;
       // Reload
       const data = await api.loadSave(savePath);
@@ -179,21 +199,21 @@
   }
 
   async function handleCompare() {
-    const { open } = await import('@tauri-apps/plugin-dialog');
+    const { open } = await import("@tauri-apps/plugin-dialog");
     const selected = await open({
-      title: 'Select save file to compare',
+      title: "Select save file to compare",
       directory: false,
       multiple: false,
     });
     if (!selected) return;
 
-    const path = typeof selected === 'string' ? selected : selected[0];
+    const path = typeof selected === "string" ? selected : selected[0];
     try {
       comparisonData = await api.compareSave(path);
-      comparisonName = path.split(/[/\\]/).pop() || path;
+      comparisonName = path.split(/[/\\]/).pop() ?? path;
       showComparison = true;
     } catch (e) {
-      addToast(`Failed to load comparison save: ${e}`, 'error');
+      addToast(`Failed to load comparison save: ${e}`, "error");
     }
   }
 
@@ -204,19 +224,35 @@
       showComparison = true;
       showBackups = false;
     } catch (e) {
-      addToast(`Failed to load comparison save: ${e}`, 'error');
+      addToast(`Failed to load comparison save: ${e}`, "error");
+    }
+  }
+
+  function getLastPickerDir(engineId: string): string | null {
+    try {
+      return localStorage.getItem(`picker_dir_${engineId}`);
+    } catch {
+      return null;
+    }
+  }
+  function setLastPickerDir(engineId: string, dir: string) {
+    try {
+      localStorage.setItem(`picker_dir_${engineId}`, dir);
+    } catch {
+      /* ignore */
     }
   }
 
   async function changeFlashFolder(path: string) {
     showFlashPicker = false;
+    if (engine) setLastPickerDir(engine.id, path);
     try {
       await api.setGame(engine!.id, path);
       currentGameDir.set(path);
       currentSave.set(null);
       currentSavePath.set(null);
       modifiedFields.set(new Set());
-      statusMessage.set(`${engine?.name} — ${path}`);
+      setStatus(`Switched to ${path}`, "success");
       await loadSaves();
     } catch (e) {
       addToast(`Failed to change folder: ${e}`, "error");
@@ -228,53 +264,66 @@
     currentSavePath.set(null);
     currentEngine.set(null);
     currentGameDir.set(null);
-    goto("/");
+    void goto("/");
   }
 
-  function applyChanges(changes: Change[], direction: 'undo' | 'redo') {
-    if (!$currentSave) return;
-    const updated = structuredClone($currentSave);
+  function applyChanges(changes: Change[], direction: "undo" | "redo") {
+    if (!save) return;
     for (const change of changes) {
-      const value = direction === 'undo' ? change.oldValue : change.newValue;
-      setNestedValue(updated, change.path, value);
+      const value = direction === "undo" ? change.oldValue : change.newValue;
+      setNestedValue(save, change.path, value);
     }
-    currentSave.set(updated);
   }
 
-  function setNestedValue(obj: Record<string, unknown>, path: string[], value: unknown) {
-    let current: unknown = obj;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- navigating dynamic nested paths requires any
+  function setNestedValue(obj: any, path: string[], value: unknown) {
+    let current = obj;
     for (let i = 0; i < path.length - 1; i++) {
-      current = (current as Record<string, unknown>)[path[i]];
+      current = current[path[i]];
     }
-    (current as Record<string, unknown>)[path[path.length - 1]] = value;
+    current[path[path.length - 1]] = value;
   }
 
   function handleUndo() {
     const command = history.undo();
-    if (command) applyChanges(command.changes, 'undo');
+    if (command) applyChanges(command.changes, "undo");
   }
 
   function handleRedo() {
     const command = history.redo();
-    if (command) applyChanges(command.changes, 'redo');
+    if (command) applyChanges(command.changes, "redo");
   }
 
   $effect(() => {
     // Clear batch selection on any tab change to prevent cross-tab ID collisions
     const tab = activeTab;
-    if (tab === 'raw' && $batchMode) {
+    if (tab === "raw" && $batchMode) {
       batchMode.set(false);
     }
     clearBatchSelection();
   });
 
+  const bindings = $derived($preferencesStore.keybindings);
+
   function handleKeydown(e: KeyboardEvent) {
-    if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+    if (matchesCombo(e, bindings.undo)) {
       e.preventDefault();
       handleUndo();
-    } else if ((e.ctrlKey && e.shiftKey && e.key === 'Z') || (e.ctrlKey && e.key === 'y')) {
+    } else if (matchesCombo(e, bindings.redo) || matchesCombo(e, bindings.redoAlt)) {
       e.preventDefault();
       handleRedo();
+    } else if (matchesCombo(e, bindings.save)) {
+      e.preventDefault();
+      void handleSave();
+    } else if (matchesCombo(e, bindings.reload)) {
+      e.preventDefault();
+      void handleReload();
+    } else if (matchesCombo(e, bindings.toggleBatch)) {
+      e.preventDefault();
+      batchMode.update((v) => {
+        if (v) clearBatchSelection();
+        return !v;
+      });
     }
   }
 </script>
@@ -286,7 +335,7 @@
   <aside class="sidebar">
     <div class="sidebar-header">
       <button class="btn-back" onclick={goBack}>← Back</button>
-      <h2 class="sidebar-title">{engine?.name || "Editor"}</h2>
+      <h2 class="sidebar-title">{engine?.name ?? "Editor"}</h2>
     </div>
 
     <div class="save-list">
@@ -347,7 +396,7 @@
       </div>
     {:else if save}
       {#if engine?.id === "sqlite"}
-        <TableBrowser tables={save.raw} />
+        <TableBrowser tables={sqliteTables} />
       {:else}
         <!-- Toolbar -->
         <div class="toolbar">
@@ -372,7 +421,7 @@
               }}
               class="toolbar-btn"
               class:active={$batchMode}
-              disabled={activeTab === 'raw'}
+              disabled={activeTab === "raw" || !tabs.some((t) => t.id !== "raw")}
               title="Toggle batch editing mode"
             >
               ☰ Batch
@@ -380,7 +429,7 @@
             <button
               onclick={handleUndo}
               disabled={!$history.undoStack.length}
-              title={history.peekUndo() ? `Undo: ${history.peekUndo()}` : 'Nothing to undo'}
+              title={history.peekUndo() ? `Undo: ${history.peekUndo()}` : "Nothing to undo"}
               class="toolbar-btn"
             >
               ↩ Undo
@@ -388,7 +437,7 @@
             <button
               onclick={handleRedo}
               disabled={!$history.redoStack.length}
-              title={history.peekRedo() ? `Redo: ${history.peekRedo()}` : 'Nothing to redo'}
+              title={history.peekRedo() ? `Redo: ${history.peekRedo()}` : "Nothing to redo"}
               class="toolbar-btn"
             >
               ↪ Redo
@@ -405,7 +454,7 @@
         <!-- Tab content -->
         {#key activeTab}
           <div class="tab-content" style="animation: fadeIn 0.15s ease">
-            {#if activeTab === "party" && (save.party || save.currency)}
+            {#if activeTab === "party" && (save.party ?? save.currency)}
               <PartyTab party={save.party ?? []} currency={save.currency} nameMap={names} />
             {:else if activeTab === "inventory" && save.inventory}
               <InventoryTab inventory={save.inventory} />
@@ -414,7 +463,7 @@
             {:else if activeTab === "switches" && save.switches}
               <SwitchesTab switches={save.switches} />
             {:else if activeTab === "raw"}
-              <RawTab data={save.raw} engineId={engine?.id || ""} />
+              <RawTab data={save.raw} engineId={engine?.id ?? ""} />
             {/if}
           </div>
         {/key}
@@ -429,7 +478,7 @@
 
   <!-- Diff modal -->
   {#if showDiff}
-    <DiffView entries={diffEntries} onclose={() => (showDiff = false)} />
+    <DiffView entries={diffEntries} onclose={() => (showDiff = false)} nameMap={names} />
   {/if}
 
   <!-- Backups modal -->
@@ -463,7 +512,9 @@
                     {new Date(backup.modified).toLocaleString()} — {(backup.size / 1024).toFixed(0)} KB
                   </div>
                 </div>
-                <button onclick={() => handleCompareBackup(backup.path, backup.name)}>Compare</button>
+                <button onclick={() => handleCompareBackup(backup.path, backup.name)}
+                  >Compare</button
+                >
                 <button class="btn-primary" onclick={() => restoreBackup(backup)}>Restore</button>
               </div>
             {/each}
@@ -478,51 +529,96 @@
     <SaveComparison
       base={save}
       compare={comparisonData}
-      baseName={savePath?.split(/[/\\]/).pop() || 'Current'}
+      baseName={savePath?.split(/[/\\]/).pop() ?? "Current"}
       compareName={comparisonName}
-      onclose={() => { showComparison = false; comparisonData = null; }}
+      onclose={() => {
+        showComparison = false;
+        comparisonData = null;
+      }}
     />
   {/if}
 
   {#if showFlashPicker && engine}
     {@const pickerConfig = (() => {
-      switch (engine.id) {
-        case "flash":
-          return {
-            extension: "sol",
-            defaultDir: "%APPDATA%/Macromedia/Flash Player/#SharedObjects" as string | null,
-            badgeColor: "#f44336",
-            title: "Select Flash Save Folder",
-          };
-        case "unreal-engine":
-          return {
-            extension: "sav",
-            defaultDir: "%LOCALAPPDATA%" as string | null,
-            badgeColor: "#1565c0",
-            title: "Select Unreal Save Folder",
-          };
-        case "sugarcube":
-          return {
-            extension: "save",
-            defaultDir: "%USERPROFILE%/Downloads" as string | null,
-            badgeColor: "#8b5cf6",
-            title: "Select SugarCube Save Folder",
-          };
-        case "unity":
-          return {
-            extension: "json",
-            defaultDir: "%LOCALAPPDATA%Low" as string | null,
-            badgeColor: "#222c37",
-            title: "Select Unity Save Folder",
-          };
-        default:
-          return {
-            extension: "sav",
-            defaultDir: null as string | null,
-            badgeColor: "#6c5ce7",
-            title: "Select Save Folder",
-          };
-      }
+      const engineDefaults: Record<
+        string,
+        { extension: string; defaultDir: string | null; badgeColor: string; title: string }
+      > = {
+        flash: {
+          extension: "sol",
+          defaultDir: "%APPDATA%\\Macromedia\\Flash Player\\#SharedObjects",
+          badgeColor: "#f44336",
+          title: "Select Flash Save Folder",
+        },
+        "unreal-engine": {
+          extension: "sav",
+          defaultDir: "%LOCALAPPDATA%",
+          badgeColor: "#1565c0",
+          title: "Select Unreal Save Folder",
+        },
+        sugarcube: {
+          extension: "save",
+          defaultDir: "%USERPROFILE%\\Downloads",
+          badgeColor: "#8b5cf6",
+          title: "Select SugarCube Save Folder",
+        },
+        renpy: {
+          extension: "save",
+          defaultDir: gameDir ? `${gameDir}\\game\\saves` : "%APPDATA%\\RenPy",
+          badgeColor: "#ff7eb3",
+          title: "Select Ren'Py Save Folder",
+        },
+        unity: {
+          extension: "json",
+          defaultDir: "%LOCALAPPDATA%Low",
+          badgeColor: "#222c37",
+          title: "Select Unity Save Folder",
+        },
+        "rpg-maker-mv": {
+          extension: "rpgsave",
+          defaultDir: gameDir,
+          badgeColor: "#4fc3f7",
+          title: "Select RPG Maker MV/MZ Game Folder",
+        },
+        "rpg-maker-vx-ace": {
+          extension: "rvdata2",
+          defaultDir: gameDir,
+          badgeColor: "#66bb6a",
+          title: "Select RPG Maker VX Ace Game Folder",
+        },
+        "pixel-game-maker-mv": {
+          extension: "json",
+          defaultDir: gameDir,
+          badgeColor: "#ff7043",
+          title: "Select Pixel Game Maker MV Game Folder",
+        },
+        "wolf-rpg-editor": {
+          extension: "sav",
+          defaultDir: gameDir,
+          badgeColor: "#ff9800",
+          title: "Select Wolf RPG Editor Game Folder",
+        },
+        sqlite: {
+          extension: "db",
+          defaultDir: gameDir,
+          badgeColor: "#003b57",
+          title: "Select SQLite Save Folder",
+        },
+      };
+
+      const config = engineDefaults[engine.id] ?? {
+        extension: engine.save_extensions[0] ?? "sav",
+        defaultDir: "%USERPROFILE%\\Downloads",
+        badgeColor: "#6c5ce7",
+        title: "Select Save Folder",
+      };
+
+      // Use persisted last-used directory if available, then fall back to Downloads
+      const lastDir = getLastPickerDir(engine.id);
+      if (lastDir) config.defaultDir = lastDir;
+      config.defaultDir ??= "%USERPROFILE%\\Downloads";
+
+      return config;
     })()}
     <SaveFolderPicker
       onselect={changeFlashFolder}
@@ -532,6 +628,7 @@
       extension={pickerConfig.extension}
       defaultDir={pickerConfig.defaultDir}
       badgeColor={pickerConfig.badgeColor}
+      deepScanDefault={$preferencesStore.deepScanDefault}
     />
   {/if}
 </div>
@@ -668,7 +765,7 @@
     position: relative;
   }
   .toolbar::after {
-    content: '';
+    content: "";
     position: absolute;
     bottom: 0;
     left: 0;
@@ -693,7 +790,9 @@
     border: none;
     border-bottom: 2px solid transparent;
     color: var(--text-secondary);
-    transition: color var(--transition), border-color var(--transition);
+    transition:
+      color var(--transition),
+      border-color var(--transition);
   }
   .tab:hover {
     color: var(--text-primary);
@@ -859,7 +958,11 @@
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 </style>

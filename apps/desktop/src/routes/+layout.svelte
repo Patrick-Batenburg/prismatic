@@ -1,10 +1,89 @@
 <script lang="ts">
   import "../app.css";
-  import { toasts, statusMessage } from "$lib/stores";
+  import {
+    toasts,
+    statusFlash,
+    currentEngine,
+    currentSavePath,
+    modifiedFields,
+    history,
+  } from "$lib/stores";
+  import { preferencesStore } from "$lib/preferences";
+
+  const FONT_STACKS: Record<string, string> = {
+    "system-default": '-apple-system, "Segoe UI", system-ui, sans-serif',
+    Inter: '"Inter", system-ui, sans-serif',
+    "Segoe UI": '"Segoe UI", system-ui, sans-serif',
+    Roboto: '"Roboto", system-ui, sans-serif',
+    "Noto Sans": '"Noto Sans", system-ui, sans-serif',
+  };
+
+  const MONO_STACKS: Record<string, string> = {
+    "Cascadia Code": '"Cascadia Code", "Fira Code", "Consolas", monospace',
+    "Fira Code": '"Fira Code", "Cascadia Code", "Consolas", monospace',
+    "JetBrains Mono": '"JetBrains Mono", "Fira Code", "Consolas", monospace',
+    Consolas: '"Consolas", "Courier New", monospace',
+    "Source Code Pro": '"Source Code Pro", "Fira Code", "Consolas", monospace',
+  };
+
+  // Apply appearance preferences to <html>
+  $effect(() => {
+    const prefs = $preferencesStore;
+    const html = document.documentElement;
+
+    // Theme
+    html.classList.toggle("light", prefs.theme === "light");
+
+    // Accent color
+    html.style.setProperty("--accent-primary", prefs.accentColor);
+    html.style.setProperty(
+      "--accent-secondary",
+      `color-mix(in srgb, ${prefs.accentColor} 80%, white)`,
+    );
+    html.style.setProperty(
+      "--accent-glow",
+      `color-mix(in srgb, ${prefs.accentColor} 20%, transparent)`,
+    );
+    html.style.setProperty("--border-focus", prefs.accentColor);
+
+    // Fonts
+    const fontStack = FONT_STACKS[prefs.appFont] ?? FONT_STACKS["system-default"];
+    html.style.setProperty("font-family", fontStack);
+    const monoStack = MONO_STACKS[prefs.monoFont] ?? MONO_STACKS["Cascadia Code"];
+    html.style.setProperty("--font-mono", monoStack);
+  });
+
+  // Apply editor preferences
+  $effect(() => {
+    const prefs = $preferencesStore;
+    history.setMaxDepth(prefs.undoHistoryDepth);
+  });
 
   let { children } = $props();
   let toastList = $derived($toasts);
-  let status = $derived($statusMessage);
+  let flash = $derived($statusFlash);
+
+  let baseStatus = $derived(
+    (() => {
+      const engine = $currentEngine;
+      const savePath = $currentSavePath;
+      const modified = $modifiedFields;
+
+      if (!engine) return "Select a game engine to get started";
+
+      const saveName = savePath?.split(/[/\\]/).pop();
+      if (!saveName) return `${engine.name} — No save loaded`;
+
+      const modCount = modified.size;
+      if (modCount > 0)
+        return `${engine.name} — ${saveName} — ${modCount} unsaved change${modCount === 1 ? "" : "s"}`;
+
+      return `${engine.name} — ${saveName}`;
+    })(),
+  );
+
+  let statusText = $derived(flash?.text ?? baseStatus);
+  let statusType = $derived(flash?.type ?? "idle");
 </script>
 
 <div class="app-shell">
@@ -13,10 +92,10 @@
   </main>
 
   <footer class="status-bar">
-    <span>{status}</span>
+    <span class="status-text status-{statusType}">{statusText}</span>
   </footer>
 
-  <!-- Toast notifications -->
+  <!-- Toast notifications (errors only) -->
   {#if toastList.length > 0}
     <div class="toast-container">
       {#each toastList as toast (toast.id)}
@@ -53,8 +132,17 @@
     flex-shrink: 0;
     position: relative;
   }
+  .status-text.status-success {
+    color: var(--success);
+  }
+  .status-text.status-error {
+    color: var(--danger);
+  }
+  .status-text.status-info {
+    color: var(--accent-primary);
+  }
   .status-bar::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;

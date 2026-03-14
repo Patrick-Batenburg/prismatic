@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { batchMode, batchSelected, clearBatchSelection } from '$lib/stores';
+  import { batchMode, batchSelected, clearBatchSelection } from "$lib/stores";
 
   interface Props {
     items: { id: string }[];
@@ -8,7 +8,21 @@
   }
 
   let { items, actions, onapply }: Props = $props();
-  let selectedAction = $state('');
+  let selectedAction = $state("");
+  let promptValue = $state("");
+
+  // Actions ending with '...' need a value input
+  let needsValue = $derived(
+    actions.find((a) => a.value === selectedAction)?.label.endsWith("...") ?? false,
+  );
+
+  function apply() {
+    if (!selectedAction || $batchSelected.size === 0) return;
+    if (needsValue && !promptValue) return;
+    onapply(selectedAction, $batchSelected, promptValue || undefined);
+    selectedAction = "";
+    promptValue = "";
+  }
 
   function selectAll() {
     batchSelected.set(new Set(items.map((i) => i.id)));
@@ -16,27 +30,6 @@
 
   function selectNone() {
     clearBatchSelection();
-  }
-
-  let promptValue = $state('');
-  let showPrompt = $state(false);
-
-  function apply() {
-    if (!selectedAction || $batchSelected.size === 0) return;
-    const action = actions.find(a => a.value === selectedAction);
-    if (action?.label.endsWith('...') && !showPrompt) {
-      showPrompt = true;
-      return;
-    }
-    onapply(selectedAction, $batchSelected, promptValue || undefined);
-    selectedAction = '';
-    promptValue = '';
-    showPrompt = false;
-  }
-
-  function cancelPrompt() {
-    showPrompt = false;
-    promptValue = '';
   }
 </script>
 
@@ -46,28 +39,36 @@
     <button onclick={selectAll} class="batch-btn">Select All</button>
     <button onclick={selectNone} class="batch-btn">Select None</button>
     <div class="batch-action">
-      <select bind:value={selectedAction}>
+      <select
+        bind:value={selectedAction}
+        onchange={() => {
+          promptValue = "";
+        }}
+      >
         <option value="">Choose action...</option>
-        {#each actions as action}
+        {#each actions as action (action.value)}
           <option value={action.value}>{action.label}</option>
         {/each}
       </select>
-      <button onclick={apply} disabled={!selectedAction || $batchSelected.size === 0} class="btn-primary">
+      {#if needsValue}
+        <input
+          type="text"
+          class="batch-value-input"
+          bind:value={promptValue}
+          placeholder="Enter value..."
+          onkeydown={(e) => {
+            if (e.key === "Enter") apply();
+          }}
+        />
+      {/if}
+      <button
+        onclick={apply}
+        disabled={!selectedAction || $batchSelected.size === 0 || (needsValue && !promptValue)}
+        class="btn-primary"
+      >
         Apply
       </button>
     </div>
-    {#if showPrompt}
-      <div class="batch-prompt">
-        <input
-          type="text"
-          bind:value={promptValue}
-          placeholder="Enter value..."
-          onkeydown={(e) => { if (e.key === 'Enter') apply(); if (e.key === 'Escape') cancelPrompt(); }}
-        />
-        <button onclick={apply} class="btn-primary" disabled={!promptValue}>OK</button>
-        <button onclick={cancelPrompt}>Cancel</button>
-      </div>
-    {/if}
   </div>
 {/if}
 
@@ -81,6 +82,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     margin-bottom: 12px;
+    flex-wrap: wrap;
   }
   .batch-count {
     font-size: 12px;
@@ -100,13 +102,7 @@
     font-size: 12px;
     padding: 4px 8px;
   }
-  .batch-prompt {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    margin-left: 8px;
-  }
-  .batch-prompt input {
+  .batch-value-input {
     width: 120px;
     font-size: 12px;
     padding: 4px 8px;

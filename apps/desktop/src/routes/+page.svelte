@@ -1,11 +1,26 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { api, type EngineInfo } from "$lib/api";
-  import { currentEngine, currentGameDir, statusMessage, addToast } from "$lib/stores";
+  import { currentEngine, currentGameDir, setStatus, addToast } from "$lib/stores";
   import SaveFolderPicker from "$lib/components/SaveFolderPicker.svelte";
+  import SettingsModal from "$lib/components/SettingsModal.svelte";
+  import { preferencesStore, sortEngines, setEngineOrder } from "$lib/preferences";
 
   let engines = $state<EngineInfo[]>([]);
   let loading = $state(true);
+  let showSettings = $state(false);
+  let reorderMode = $state(false);
+
+  // Drag state (only active in reorder mode)
+  let dragIdx = $state<number | null>(null);
+  let dropIdx = $state<number | null>(null);
+  let pointerStartX = 0;
+  let pointerStartY = 0;
+  let ghostOffsetX = 0;
+  let ghostOffsetY = 0;
+  let isDragging = $state(false);
+  let suppressClick = $state(false);
+  let ghostEl: HTMLElement | null = null;
 
   // Engine logos: static/engines/{iconKey}.svg
   const engineIconKey: Record<string, string> = {
@@ -34,7 +49,7 @@
     unity: "🎮",
   };
 
-  let logoFailed = $state<Record<string, boolean>>({});
+  const logoFailed = $state<Record<string, boolean>>({});
 
   const engineColors: Record<string, string> = {
     "rpg-maker-mv": "#4fc3f7",
@@ -49,44 +64,101 @@
     unity: "#222c37",
   };
 
-  function getPickerConfig(engine: EngineInfo) {
-    switch (engine.id) {
-      case "flash":
-        return {
-          extension: "sol",
-          defaultDir: "%APPDATA%/Macromedia/Flash Player/#SharedObjects" as string | null,
-          badgeColor: "#f44336",
-          title: "Select Flash Save Folder",
-        };
-      case "unreal-engine":
-        return {
-          extension: "sav",
-          defaultDir: "%LOCALAPPDATA%" as string | null,
-          badgeColor: "#1565c0",
-          title: "Select Unreal Engine Save Folder",
-        };
-      case "sugarcube":
-        return {
-          extension: "save",
-          defaultDir: "%USERPROFILE%/Downloads" as string | null,
-          badgeColor: "#8b5cf6",
-          title: "Select SugarCube Save Folder",
-        };
-      case "unity":
-        return {
-          extension: "json",
-          defaultDir: "%LOCALAPPDATA%Low" as string | null,
-          badgeColor: "#222c37",
-          title: "Select Unity Save Folder",
-        };
-      default:
-        return {
-          extension: "sav",
-          defaultDir: null as string | null,
-          badgeColor: "#6c5ce7",
-          title: "Select Save Folder",
-        };
+  function getLastPickerDir(engineId: string): string | null {
+    try {
+      return localStorage.getItem(`picker_dir_${engineId}`);
+    } catch {
+      return null;
     }
+  }
+  function setLastPickerDir(engineId: string, dir: string) {
+    try {
+      localStorage.setItem(`picker_dir_${engineId}`, dir);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function getPickerConfig(engine: EngineInfo) {
+    const engineDefaults: Record<
+      string,
+      { extension: string; defaultDir: string | null; badgeColor: string; title: string }
+    > = {
+      flash: {
+        extension: "sol",
+        defaultDir: "%APPDATA%\\Macromedia\\Flash Player\\#SharedObjects",
+        badgeColor: "#f44336",
+        title: "Select Flash Save Folder",
+      },
+      "unreal-engine": {
+        extension: "sav",
+        defaultDir: "%LOCALAPPDATA%",
+        badgeColor: "#1565c0",
+        title: "Select Unreal Engine Save Folder",
+      },
+      sugarcube: {
+        extension: "save",
+        defaultDir: "%USERPROFILE%\\Downloads",
+        badgeColor: "#8b5cf6",
+        title: "Select SugarCube Save Folder",
+      },
+      renpy: {
+        extension: "save",
+        defaultDir: "%APPDATA%\\RenPy",
+        badgeColor: "#ff7eb3",
+        title: "Select Ren'Py Save Folder",
+      },
+      unity: {
+        extension: "json",
+        defaultDir: "%LOCALAPPDATA%Low",
+        badgeColor: "#222c37",
+        title: "Select Unity Save Folder",
+      },
+      "rpg-maker-mv": {
+        extension: "rpgsave",
+        defaultDir: null,
+        badgeColor: "#4fc3f7",
+        title: "Select RPG Maker MV/MZ Game Folder",
+      },
+      "rpg-maker-vx-ace": {
+        extension: "rvdata2",
+        defaultDir: null,
+        badgeColor: "#66bb6a",
+        title: "Select RPG Maker VX Ace Game Folder",
+      },
+      "pixel-game-maker-mv": {
+        extension: "json",
+        defaultDir: null,
+        badgeColor: "#ff7043",
+        title: "Select Pixel Game Maker MV Game Folder",
+      },
+      "wolf-rpg-editor": {
+        extension: "sav",
+        defaultDir: null,
+        badgeColor: "#ff9800",
+        title: "Select Wolf RPG Editor Game Folder",
+      },
+      sqlite: {
+        extension: "db",
+        defaultDir: null,
+        badgeColor: "#003b57",
+        title: "Select SQLite Save Folder",
+      },
+    };
+
+    const config = engineDefaults[engine.id] ?? {
+      extension: engine.save_extensions[0] ?? "sav",
+      defaultDir: "%USERPROFILE%\\Downloads",
+      badgeColor: "#6c5ce7",
+      title: "Select Save Folder",
+    };
+
+    // Use persisted last-used directory if available, then fall back to Downloads
+    const lastDir = getLastPickerDir(engine.id);
+    if (lastDir) config.defaultDir = lastDir;
+    config.defaultDir ??= "%USERPROFILE%\\Downloads";
+
+    return config;
   }
 
   const debugInfo: Record<string, { keys: string[]; note: string }> = {
@@ -109,12 +181,12 @@
   };
 
   $effect(() => {
-    loadEngines();
+    void loadEngines();
   });
 
   async function loadEngines() {
     try {
-      engines = await api.listEngines();
+      engines = sortEngines(await api.listEngines());
     } catch (e) {
       addToast(`Failed to load engines: ${e}`, "error");
     } finally {
@@ -129,9 +201,8 @@
     await api.setGame(engine.id, gameDir);
     currentEngine.set(engine);
     currentGameDir.set(gameDir);
-    statusMessage.set(`${engine.name} — ${gameDir}`);
-    addToast(`Loaded ${engine.name}`, "success");
-    goto("/editor");
+    setStatus(`Loaded ${engine.name} — ${gameDir}`, "success");
+    void goto("/editor");
   }
 
   async function autoDetect() {
@@ -143,7 +214,7 @@
       });
       if (!selected) return;
 
-      const gameDir = selected as string;
+      const gameDir = String(selected);
       detectingFolder = true;
 
       const detected = await api.detectEngine(gameDir);
@@ -185,10 +256,7 @@
             : [],
         });
         if (!selected) return;
-        const filePath =
-          typeof selected === "object" && selected !== null && "path" in selected
-            ? (selected as { path: string }).path
-            : (selected as string);
+        const filePath = String(selected);
         const lastSep = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
         const gameDir = lastSep > 0 ? filePath.substring(0, lastSep) : filePath;
         await finishSetup(engine, gameDir);
@@ -201,15 +269,107 @@
       });
       if (!selected) return;
 
-      await finishSetup(engine, selected as string);
+      await finishSetup(engine, String(selected));
     } catch (e) {
       addToast(`Error: ${e}`, "error");
     }
   }
 
+  function handlePointerDown(e: PointerEvent, idx: number) {
+    if (!reorderMode) return;
+    e.preventDefault();
+    pointerStartX = e.clientX;
+    pointerStartY = e.clientY;
+    dragIdx = idx;
+    isDragging = false;
+
+    // Store offset from pointer to card top-left so ghost doesn't snap
+    const target = e.currentTarget;
+    if (!(target instanceof HTMLElement)) return;
+    const rect = target.getBoundingClientRect();
+    ghostOffsetX = e.clientX - rect.left;
+    ghostOffsetY = e.clientY - rect.top;
+
+    document.addEventListener("pointermove", handleDocPointerMove);
+    document.addEventListener("pointerup", handleDocPointerUp);
+  }
+
+  function createGhost(sourceEl: HTMLElement, x: number, y: number) {
+    const rect = sourceEl.getBoundingClientRect();
+    const cloned = sourceEl.cloneNode(true);
+    if (!(cloned instanceof HTMLElement)) return;
+    ghostEl = cloned;
+    ghostEl.style.position = "fixed";
+    ghostEl.style.width = rect.width + "px";
+    ghostEl.style.height = rect.height + "px";
+    ghostEl.style.left = x - ghostOffsetX + "px";
+    ghostEl.style.top = y - ghostOffsetY + "px";
+    ghostEl.style.pointerEvents = "none";
+    ghostEl.style.zIndex = "1000";
+    ghostEl.style.opacity = "0.85";
+    ghostEl.style.transform = "scale(1.04) rotate(1.5deg)";
+    ghostEl.style.boxShadow = "0 12px 32px rgba(0,0,0,0.35)";
+    ghostEl.style.transition = "none";
+    ghostEl.style.cursor = "grabbing";
+    document.body.appendChild(ghostEl);
+  }
+
+  function handleDocPointerMove(e: PointerEvent) {
+    if (dragIdx === null) return;
+    const dx = e.clientX - pointerStartX;
+    const dy = e.clientY - pointerStartY;
+
+    if (!isDragging && Math.abs(dx) + Math.abs(dy) > 8) {
+      isDragging = true;
+      // Find the source card element and create ghost from it
+      const sourceCard = document.querySelector<HTMLElement>(`[data-engine-idx="${dragIdx}"]`);
+      if (sourceCard) createGhost(sourceCard, e.clientX, e.clientY);
+    }
+    if (!isDragging) return;
+
+    // Move ghost to follow cursor
+    if (ghostEl) {
+      ghostEl.style.left = e.clientX - ghostOffsetX + "px";
+      ghostEl.style.top = e.clientY - ghostOffsetY + "px";
+    }
+
+    // Detect drop target (ghost has pointerEvents:none so elementFromPoint sees through it)
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const card = el?.closest<HTMLElement>("[data-engine-idx]") ?? null;
+    dropIdx = card ? Number(card.dataset.engineIdx) : null;
+  }
+
+  function handleDocPointerUp() {
+    // Remove ghost
+    if (ghostEl) {
+      ghostEl.remove();
+      ghostEl = null;
+    }
+    document.removeEventListener("pointermove", handleDocPointerMove);
+    document.removeEventListener("pointerup", handleDocPointerUp);
+
+    if (isDragging && dragIdx !== null && dropIdx !== null && dragIdx !== dropIdx) {
+      const reordered = [...engines];
+      const [moved] = reordered.splice(dragIdx, 1);
+      reordered.splice(dropIdx, 0, moved);
+      engines = reordered;
+      setEngineOrder(reordered.map((en) => en.id));
+      suppressClick = true;
+    }
+    dragIdx = null;
+    dropIdx = null;
+    isDragging = false;
+  }
+
+  async function resetEngineOrder() {
+    setEngineOrder([]);
+    engines = await api.listEngines();
+  }
+
   async function onFlashSaveSelected(path: string) {
     const engine = flashPickerEngine!;
     flashPickerEngine = null;
+    setLastPickerDir(engine.id, path);
     try {
       await finishSetup(engine, path);
     } catch (e) {
@@ -222,17 +382,29 @@
   <div class="header">
     <img src="/logo.svg" alt="Prismatic" class="app-logo" />
     <p class="subtitle">Select your game engine to get started</p>
+    <button class="settings-btn" onclick={() => (showSettings = true)} title="Settings">⚙</button>
   </div>
 
   {#if loading}
     <div class="loading">Loading engines...</div>
   {:else}
-    <div class="engine-grid">
+    <div class="grid-toolbar">
+      {#if reorderMode}
+        <button class="toolbar-btn" onclick={resetEngineOrder}>Reset to Default</button>
+        <button class="toolbar-btn toolbar-btn-primary" onclick={() => (reorderMode = false)}
+          >Done</button
+        >
+      {:else}
+        <button class="toolbar-btn" onclick={() => (reorderMode = true)}>Reorder</button>
+      {/if}
+    </div>
+    <div class="engine-grid" class:reorder-mode={reorderMode}>
       <button
         class="engine-card auto-detect-card"
+        class:reorder-locked={reorderMode}
         style="--engine-color: #ffd54f"
-        onclick={() => autoDetect()}
-        disabled={detectingFolder}
+        onclick={() => !reorderMode && autoDetect()}
+        disabled={detectingFolder || reorderMode}
       >
         <div class="engine-icon">
           <span class="engine-emoji">{detectingFolder ? "⏳" : "📂"}</span>
@@ -240,13 +412,26 @@
         <div class="engine-name">
           {detectingFolder ? "Detecting..." : "Auto-Detect"}
         </div>
-        <div class="engine-desc">Select a game folder and automatically detect the engine</div>
+        {#if !reorderMode}
+          <div class="engine-desc">Select a game folder and automatically detect the engine</div>
+        {/if}
       </button>
-      {#each engines as engine (engine.id)}
+      {#each engines as engine, idx (engine.id)}
         <button
           class="engine-card"
+          class:drag-over={reorderMode && dropIdx === idx && dragIdx !== idx}
+          class:dragging={reorderMode && dragIdx === idx && isDragging}
           style="--engine-color: {engineColors[engine.id] || '#6c5ce7'}"
-          onclick={() => selectEngine(engine)}
+          data-engine-idx={idx}
+          onclick={() => {
+            if (reorderMode) return;
+            if (suppressClick) {
+              suppressClick = false;
+              return;
+            }
+            void selectEngine(engine);
+          }}
+          onpointerdown={reorderMode ? (e) => handlePointerDown(e, idx) : undefined}
         >
           <div
             class="engine-icon"
@@ -264,28 +449,34 @@
             {/if}
           </div>
           <div class="engine-name">{engine.name}</div>
-          <div class="engine-desc">{engine.description}</div>
-          <div class="engine-meta">
-            {#if engine.supports_debug}
-              <span class="badge" style="background: var(--success); color: white;">Debug Mode</span
+          {#if !reorderMode}
+            <div class="engine-desc">{engine.description}</div>
+            <div class="engine-meta">
+              {#if engine.supports_debug}
+                <span class="badge" style="background: var(--success); color: white;"
+                  >Debug Mode</span
+                >
+              {/if}
+              <span
+                class="badge"
+                style="background: var(--bg-tertiary); color: var(--text-secondary);"
               >
-            {/if}
-            <span
-              class="badge"
-              style="background: var(--bg-tertiary); color: var(--text-secondary);"
-            >
-              {engine.save_extensions.map((e) => `.${e}`).join(", ")}
-            </span>
-          </div>
-          {#if engine.supports_debug && debugInfo[engine.id]}
-            <div class="debug-details">
-              <div class="debug-keys">
-                {#each debugInfo[engine.id].keys as key (key)}
-                  <span class="debug-key">{key}</span>
-                {/each}
-              </div>
-              <div class="debug-note">{debugInfo[engine.id].note}</div>
+                {engine.save_extensions.map((e) => `.${e}`).join(", ")}
+              </span>
             </div>
+            {#if engine.supports_debug && debugInfo[engine.id]}
+              <div class="debug-details">
+                <div class="debug-keys">
+                  {#each debugInfo[engine.id].keys as key (key)}
+                    <span class="debug-key">{key}</span>
+                  {/each}
+                </div>
+                <div class="debug-note">{debugInfo[engine.id].note}</div>
+              </div>
+            {/if}
+          {/if}
+          {#if reorderMode}
+            <span class="drag-hint">Drag to reorder</span>
           {/if}
         </button>
       {/each}
@@ -303,7 +494,12 @@
     extension={pickerConfig.extension}
     defaultDir={pickerConfig.defaultDir}
     badgeColor={pickerConfig.badgeColor}
+    deepScanDefault={$preferencesStore.deepScanDefault}
   />
+{/if}
+
+{#if showSettings}
+  <SettingsModal onclose={() => (showSettings = false)} />
 {/if}
 
 <style>
@@ -319,6 +515,29 @@
   .header {
     text-align: center;
     margin-bottom: 48px;
+    position: relative;
+  }
+
+  .settings-btn {
+    position: absolute;
+    top: 0;
+    right: -60px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-size: 20px;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+  .settings-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
   }
 
   .app-logo {
@@ -342,6 +561,41 @@
     gap: 20px;
     max-width: 900px;
     width: 100%;
+  }
+
+  .grid-toolbar {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    max-width: 900px;
+    width: 100%;
+    margin-bottom: 12px;
+  }
+
+  .toolbar-btn {
+    padding: 6px 14px;
+    font-size: 13px;
+    border-radius: var(--radius);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .toolbar-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .toolbar-btn-primary {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
+  }
+
+  .toolbar-btn-primary:hover {
+    opacity: 0.9;
   }
 
   .engine-card {
@@ -376,6 +630,56 @@
 
   .engine-card:hover::before {
     height: 2px;
+  }
+
+  /* Reorder mode styles */
+  .reorder-mode .engine-card {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .reorder-mode .engine-card:hover {
+    transform: none;
+    border-color: var(--border);
+    box-shadow: var(--shadow-card);
+  }
+
+  .reorder-mode .engine-card:active {
+    cursor: grabbing;
+  }
+
+  .engine-card.dragging {
+    opacity: 0.25;
+    background: var(--bg-tertiary);
+    border-style: dashed;
+    border-color: var(--text-muted);
+    box-shadow: none;
+    cursor: grabbing;
+  }
+
+  .engine-card.dragging * {
+    visibility: hidden;
+  }
+
+  .engine-card.drag-over {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-primary);
+    background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-card));
+    transform: scale(1.03);
+  }
+
+  .reorder-locked {
+    opacity: 0.4;
+    cursor: default !important;
+    pointer-events: none;
+  }
+
+  .drag-hint {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 8px;
   }
 
   .engine-icon {
@@ -442,7 +746,7 @@
 
   .debug-key {
     font-size: 11px;
-    font-family: monospace;
+    font-family: var(--font-mono);
     color: var(--text-secondary);
     padding: 2px 6px;
     background: var(--bg-tertiary);

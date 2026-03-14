@@ -2,14 +2,15 @@
   import { api, type SaveDirEntry, type ScanProgressEvent } from "$lib/api";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
-  let {
+  const {
     onselect,
     oncancel,
     title = "Select Save Folder",
     hint = "Navigate to the folder containing your save files.",
     extension = "sav",
-    defaultDir = null as string | null,
+    defaultDir = null,
     badgeColor = "#6c5ce7",
+    deepScanDefault = false,
   }: {
     onselect: (path: string) => void;
     oncancel: () => void;
@@ -18,6 +19,7 @@
     extension?: string;
     defaultDir?: string | null;
     badgeColor?: string;
+    deepScanDefault?: boolean;
   } = $props();
 
   let currentPath = $state("");
@@ -25,17 +27,18 @@
   let loading = $state(true);
   let error = $state("");
   let pathInput = $state("");
-  let deepScan = $state(false);
+  // svelte-ignore state_referenced_locally
+  let deepScan = $state(deepScanDefault);
   let scanning = $state(false);
   let scanProgress = $state({ done: 0, total: 0 });
 
   let unlistenProgress: UnlistenFn | null = null;
   let unlistenComplete: UnlistenFn | null = null;
 
-  let filesHere = $derived(entries.filter((e) => !e.is_dir).length);
+  const filesHere = $derived(entries.filter((e) => !e.is_dir).length);
 
   $effect(() => {
-    browse();
+    void browse();
     return () => {
       cleanupListeners();
     };
@@ -60,7 +63,7 @@
       entries = items;
 
       if (deepScan) {
-        startDeepScan();
+        void startDeepScan();
       }
     } catch (_e) {
       error = String(_e);
@@ -97,7 +100,7 @@
   function toggleDeepScan() {
     deepScan = !deepScan;
     if (deepScan) {
-      startDeepScan();
+      void startDeepScan();
     } else {
       scanning = false;
       cleanupListeners();
@@ -107,19 +110,19 @@
   function navigateUp() {
     const parent = currentPath.replace(/[\\/][^\\/]+$/, "");
     if (parent && parent !== currentPath) {
-      browse(parent);
+      void browse(parent);
     }
   }
 
   function navigateTo(entry: SaveDirEntry) {
     if (entry.is_dir) {
-      browse(entry.path);
+      void browse(entry.path);
     }
   }
 
   function handlePathSubmit() {
     if (pathInput.trim()) {
-      browse(pathInput.trim());
+      void browse(pathInput.trim());
     }
   }
 
@@ -318,7 +321,7 @@
     flex: 1;
     padding: 6px 10px;
     font-size: 12px;
-    font-family: monospace;
+    font-family: var(--font-mono);
     border-radius: var(--radius);
     background: var(--bg-primary);
     border: 1px solid var(--border);

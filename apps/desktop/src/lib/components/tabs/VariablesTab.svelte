@@ -1,8 +1,15 @@
 <script lang="ts">
   import type { Variable } from "$lib/api";
-  import { batchMode, batchSelected, toggleBatchItem, history, markModified, trackEdit } from '$lib/stores';
-  import type { Change } from '$lib/stores/history';
-  import BatchToolbar from '$lib/components/BatchToolbar.svelte';
+  import {
+    batchMode,
+    batchSelected,
+    toggleBatchItem,
+    history,
+    markModified,
+    trackEdit,
+  } from "$lib/stores";
+  import type { Change } from "$lib/stores/history";
+  import BatchToolbar from "$lib/components/BatchToolbar.svelte";
 
   let { variables = $bindable() }: { variables: Variable[] } = $props();
   let search = $state("");
@@ -39,7 +46,7 @@
     })(),
   );
 
-  function updateValue(variable: Variable, newVal: string, idx: number) {
+  function updateValue(variable: Variable, newVal: string, _idx: number) {
     const oldValue = variable.value;
     // Try to parse as number first
     const num = Number(newVal);
@@ -55,42 +62,33 @@
     // Find the actual array index for undo path resolution
     const arrayIdx = variables.indexOf(variable);
     trackEdit(
-      ['variables', String(arrayIdx), 'value'],
-      oldValue, newValue,
-      `Set variable "${variable.name || variable.id}" to ${newValue}`
+      ["variables", String(arrayIdx), "value"],
+      oldValue,
+      newValue,
+      `Set variable "${variable.name || variable.id}" to ${newValue}`,
     );
     markModified(`variables.${arrayIdx}`);
   }
 
   function handleBatchAction(action: string, selectedIds: Set<string>, value?: string) {
     const changes: Change[] = [];
-    const targetValue = action === 'reset_to_zero' ? 0 : (value ? (isNaN(Number(value)) ? value : Number(value)) : 0);
+    const targetValue =
+      action === "reset_to_zero" ? 0 : value ? (isNaN(Number(value)) ? value : Number(value)) : 0;
 
     for (let i = 0; i < variables.length; i++) {
       if (!selectedIds.has(String(variables[i].id))) continue;
-      changes.push({ path: ['variables', String(i), 'value'], oldValue: variables[i].value, newValue: targetValue });
+      changes.push({
+        path: ["variables", String(i), "value"],
+        oldValue: variables[i].value,
+        newValue: targetValue,
+      });
       variables[i].value = targetValue;
       markModified(`variables.${i}`);
     }
 
     if (changes.length > 0) {
       history.push({ description: `Batch ${action} on ${selectedIds.size} variables`, changes });
-    }
-  }
-
-  function handleBatchAction(action: string, selectedIds: Set<string>, value?: string) {
-    const changes: Change[] = [];
-    const targetValue = action === 'reset_to_zero' ? 0 : (value ? (isNaN(Number(value)) ? value : Number(value)) : 0);
-
-    for (let i = 0; i < variables.length; i++) {
-      if (!selectedIds.has(String(variables[i].id))) continue;
-      changes.push({ path: ['variables', String(variables[i].id), 'value'], oldValue: variables[i].value, newValue: targetValue });
-      variables[i].value = targetValue;
-      markModified(`variables.${i}`);
-    }
-
-    if (changes.length > 0) {
-      history.push({ description: `Batch ${action} on ${selectedIds.size} variables`, changes });
+      variables = variables.slice(); // trigger reactivity for batch mutations
     }
   }
 </script>
@@ -118,8 +116,8 @@
 <BatchToolbar
   items={filtered.map((v) => ({ id: String(v.id) }))}
   actions={[
-    { label: 'Set value...', value: 'set_value' },
-    { label: 'Reset to 0', value: 'reset_to_zero' },
+    { label: "Set value...", value: "set_value" },
+    { label: "Reset to 0", value: "reset_to_zero" },
   ]}
   onapply={handleBatchAction}
 />
@@ -219,7 +217,7 @@
   .col-id {
     width: 60px;
     color: var(--text-muted);
-    font-family: monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
   }
   .col-name {
@@ -231,7 +229,7 @@
   }
   .col-value {
     width: 200px;
-    font-family: monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
   }
 

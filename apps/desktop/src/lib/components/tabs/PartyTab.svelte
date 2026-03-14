@@ -1,8 +1,15 @@
 <script lang="ts">
   import type { Character, CurrencyInfo, NameMap } from "$lib/api";
-  import { batchMode, batchSelected, toggleBatchItem, history, markModified, trackEdit } from '$lib/stores';
-  import type { Change } from '$lib/stores/history';
-  import BatchToolbar from '$lib/components/BatchToolbar.svelte';
+  import {
+    batchMode,
+    batchSelected,
+    toggleBatchItem,
+    history,
+    markModified,
+    trackEdit,
+  } from "$lib/stores";
+  import type { Change } from "$lib/stores/history";
+  import BatchToolbar from "$lib/components/BatchToolbar.svelte";
 
   let {
     party = $bindable(),
@@ -40,12 +47,15 @@
       eq.item_name = null;
     }
     trackEdit(
-      ['party', String(charIdx), 'equips', String(eqIdx), 'item_id'],
-      oldId, eq.item_id,
-      `Set ${eq.slot_name} to ${eq.item_name || 'None'}`
+      ["party", String(charIdx), "equips", String(eqIdx), "item_id"],
+      oldId,
+      eq.item_id,
+      `Set ${eq.slot_name} to ${eq.item_name || "None"}`,
     );
     markModified(`party.${charIdx}.equips.${eqIdx}`);
   }
+
+  const DEFAULT_MAX_STAT = 9999;
 
   function handleBatchAction(action: string, selectedIds: Set<string>, value?: string) {
     const changes: Change[] = [];
@@ -55,25 +65,38 @@
       const char = party[i];
       if (!selectedIds.has(String(char.id))) continue;
 
-      if (action === 'max_stats') {
+      if (action === "max_stats") {
         for (let s = 0; s < char.stats.length; s++) {
           const stat = char.stats[s];
-          if (stat.max != null && stat.current !== stat.max) {
-            changes.push({ path: ['party', String(i), 'stats', String(s), 'current'], oldValue: stat.current, newValue: stat.max });
-            stat.current = stat.max;
+          const maxVal = stat.max ?? DEFAULT_MAX_STAT;
+          if (stat.current !== maxVal) {
+            changes.push({
+              path: ["party", String(i), "stats", String(s), "current"],
+              oldValue: stat.current,
+              newValue: maxVal,
+            });
+            stat.current = maxVal;
           }
         }
-      } else if (action === 'set_stat') {
+      } else if (action === "set_stat") {
         for (let s = 0; s < char.stats.length; s++) {
           const stat = char.stats[s];
-          changes.push({ path: ['party', String(i), 'stats', String(s), 'current'], oldValue: stat.current, newValue: numVal });
+          changes.push({
+            path: ["party", String(i), "stats", String(s), "current"],
+            oldValue: stat.current,
+            newValue: numVal,
+          });
           stat.current = numVal;
         }
-      } else if (action === 'set_level') {
-        changes.push({ path: ['party', String(i), 'level'], oldValue: char.level, newValue: numVal });
+      } else if (action === "set_level") {
+        changes.push({
+          path: ["party", String(i), "level"],
+          oldValue: char.level,
+          newValue: numVal,
+        });
         char.level = numVal;
-      } else if (action === 'set_exp') {
-        changes.push({ path: ['party', String(i), 'exp'], oldValue: char.exp, newValue: numVal });
+      } else if (action === "set_exp") {
+        changes.push({ path: ["party", String(i), "exp"], oldValue: char.exp, newValue: numVal });
         char.exp = numVal;
       }
       markModified(`party.${i}`);
@@ -81,6 +104,7 @@
 
     if (changes.length > 0) {
       history.push({ description: `Batch ${action} on ${selectedIds.size} characters`, changes });
+      party = party.slice(); // trigger reactivity for batch mutations
     }
   }
 </script>
@@ -97,16 +121,14 @@
       type="number"
       class="currency-input"
       value={currency.amount}
-      onfocus={(e) => { e.currentTarget.dataset.old = String(currency.amount); }}
+      onfocus={(e) => {
+        e.currentTarget.dataset.old = String(currency.amount);
+      }}
       onchange={(e) => {
         const oldVal = Number(e.currentTarget.dataset.old);
         const newVal = Number(e.currentTarget.value);
         currency.amount = newVal;
-        trackEdit(
-          ['currency', 'amount'],
-          oldVal, newVal,
-          `Set ${currency.label} to ${newVal}`
-        );
+        trackEdit(["currency", "amount"], oldVal, newVal, `Set ${currency.label} to ${newVal}`);
         markModified("currency.amount");
       }}
     />
@@ -116,10 +138,10 @@
 <BatchToolbar
   items={party.map((c) => ({ id: String(c.id) }))}
   actions={[
-    { label: 'Set stat to value...', value: 'set_stat' },
-    { label: 'Max all stats', value: 'max_stats' },
-    { label: 'Set level...', value: 'set_level' },
-    { label: 'Set experience...', value: 'set_exp' },
+    { label: "Set stat to value...", value: "set_stat" },
+    { label: "Max all stats", value: "max_stats" },
+    { label: "Set level...", value: "set_level" },
+    { label: "Set experience...", value: "set_exp" },
   ]}
   onapply={handleBatchAction}
 />
@@ -140,15 +162,18 @@
         <input
           class="char-name"
           value={char.name}
-          onfocus={(e) => { e.currentTarget.dataset.old = char.name; }}
+          onfocus={(e) => {
+            e.currentTarget.dataset.old = char.name;
+          }}
           onchange={(e) => {
-            const oldVal = e.currentTarget.dataset.old ?? '';
+            const oldVal = e.currentTarget.dataset.old ?? "";
             const newVal = e.currentTarget.value;
             char.name = newVal;
             trackEdit(
-              ['party', String(idx), 'name'],
-              oldVal, newVal,
-              `Rename character to "${newVal}"`
+              ["party", String(idx), "name"],
+              oldVal,
+              newVal,
+              `Rename character to "${newVal}"`,
             );
             markModified(`party.${idx}.name`);
           }}
@@ -164,15 +189,18 @@
           <input
             type="number"
             value={char.level}
-            onfocus={(e) => { e.currentTarget.dataset.old = String(char.level); }}
+            onfocus={(e) => {
+              e.currentTarget.dataset.old = String(char.level);
+            }}
             onchange={(e) => {
               const oldVal = Number(e.currentTarget.dataset.old);
               const newVal = Number(e.currentTarget.value);
               char.level = newVal;
               trackEdit(
-                ['party', String(idx), 'level'],
-                oldVal, newVal,
-                `Set ${char.name} level to ${newVal}`
+                ["party", String(idx), "level"],
+                oldVal,
+                newVal,
+                `Set ${char.name} level to ${newVal}`,
               );
               markModified(`party.${idx}.level`);
             }}
@@ -183,15 +211,18 @@
           <input
             type="number"
             value={char.exp}
-            onfocus={(e) => { e.currentTarget.dataset.old = String(char.exp); }}
+            onfocus={(e) => {
+              e.currentTarget.dataset.old = String(char.exp);
+            }}
             onchange={(e) => {
               const oldVal = Number(e.currentTarget.dataset.old);
               const newVal = Number(e.currentTarget.value);
               char.exp = newVal;
               trackEdit(
-                ['party', String(idx), 'exp'],
-                oldVal, newVal,
-                `Set ${char.name} EXP to ${newVal}`
+                ["party", String(idx), "exp"],
+                oldVal,
+                newVal,
+                `Set ${char.name} EXP to ${newVal}`,
               );
               markModified(`party.${idx}.exp`);
             }}
@@ -206,15 +237,18 @@
             <input
               type="number"
               value={stat.current}
-              onfocus={(e) => { e.currentTarget.dataset.old = String(stat.current); }}
+              onfocus={(e) => {
+                e.currentTarget.dataset.old = String(stat.current);
+              }}
               onchange={(e) => {
                 const oldVal = Number(e.currentTarget.dataset.old);
                 const newVal = Number(e.currentTarget.value);
                 stat.current = newVal;
                 trackEdit(
-                  ['party', String(idx), 'stats', String(si), 'current'],
-                  oldVal, newVal,
-                  `Set ${char.name} ${stat.label} to ${newVal}`
+                  ["party", String(idx), "stats", String(si), "current"],
+                  oldVal,
+                  newVal,
+                  `Set ${char.name} ${stat.label} to ${newVal}`,
                 );
                 markModified(`party.${idx}.stats.${si}.current`);
               }}
@@ -313,7 +347,9 @@
     border-radius: var(--radius);
     padding: 16px;
     box-shadow: var(--shadow-card);
-    transition: border-color var(--transition), box-shadow var(--transition);
+    transition:
+      border-color var(--transition),
+      box-shadow var(--transition);
   }
   .character-card:hover {
     border-color: rgba(108, 92, 231, 0.3);

@@ -1,4 +1,5 @@
-import { writable, get } from 'svelte/store';
+import { writable, get } from "svelte/store";
+import { getPreferences } from "$lib/preferences";
 
 export interface Change {
   path: string[];
@@ -18,10 +19,10 @@ interface HistoryState {
 }
 
 function createHistoryStore() {
-  const { subscribe, set, update } = writable<HistoryState>({
+  const { subscribe, update } = writable<HistoryState>({
     undoStack: [],
     redoStack: [],
-    maxDepth: 100,
+    maxDepth: getPreferences().undoHistoryDepth,
   });
 
   return {
@@ -85,12 +86,21 @@ function createHistoryStore() {
       if (state.redoStack.length === 0) return null;
       return state.redoStack[state.redoStack.length - 1].description;
     },
+
+    setMaxDepth(depth: number) {
+      update((state) => ({ ...state, maxDepth: depth }));
+    },
   };
 }
 
 export const history = createHistoryStore();
 
-export function trackEdit(path: string[], oldValue: unknown, newValue: unknown, description: string) {
+export function trackEdit(
+  path: string[],
+  oldValue: unknown,
+  newValue: unknown,
+  description: string,
+) {
   if (oldValue === newValue) return;
   history.push({
     description,

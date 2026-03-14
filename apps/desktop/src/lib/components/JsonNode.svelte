@@ -10,7 +10,10 @@
     matchCount = $bindable(0),
     filterFn = undefined as ((key: string, value: unknown) => boolean) | undefined,
     path = [] as string[],
-    onedit = undefined as ((path: string[], oldValue: unknown, newValue: unknown) => void) | undefined,
+    onedit = undefined as
+      | ((path: string[], oldValue: unknown, newValue: unknown) => void)
+      | undefined,
+    editController = undefined as { register: (commit: () => void) => void } | undefined,
   }: {
     key: string;
     value: unknown;
@@ -21,6 +24,7 @@
     filterFn?: ((key: string, value: unknown) => boolean) | undefined;
     path?: string[];
     onedit?: ((path: string[], oldValue: unknown, newValue: unknown) => void) | undefined;
+    editController?: { register: (commit: () => void) => void } | undefined;
   } = $props();
 
   // Capture initial depth (not reactive — intentional, depth is fixed per instance)
@@ -112,11 +116,14 @@
   }
 
   function startEdit() {
+    // Close any other node that's currently editing
+    if (editController) editController.register(commitEdit);
     editValue = typeof value === "string" ? value : JSON.stringify(value);
     editing = true;
   }
 
   function commitEdit() {
+    if (!editing) return; // guard against double-commit
     editing = false;
     const oldValue = value;
     try {
@@ -158,8 +165,8 @@
       <button
         class="value"
         style="color: {valueColor(value)}"
-        ondblclick={startEdit}
-        title="Double-click to edit"
+        onclick={startEdit}
+        title="Click to edit"
       >
         {formatValue(value)}
       </button>
@@ -178,6 +185,7 @@
       {expandAll}
       {filterFn}
       {onedit}
+      {editController}
       bind:matchCount
     />
   {/each}

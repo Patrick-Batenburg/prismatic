@@ -1,11 +1,12 @@
 <script lang="ts">
   import { api, type TableMeta, type TableRow, type CellChange } from "$lib/api";
-  import { addToast } from "$lib/stores";
+  import { addToast, setStatus } from "$lib/stores";
+  import { preferencesStore } from "$lib/preferences";
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
 
   let { tables }: { tables: TableMeta[] } = $props();
 
-  const PAGE_SIZE = 50;
+  let pageSize = $derived($preferencesStore.tablePageSize);
 
   let selectedTable = $state<string | null>(null);
   let columns = $state<string[]>([]);
@@ -18,7 +19,7 @@
   let changes = new SvelteMap<string, CellChange>();
   let selectedRowids = new SvelteSet<number>();
 
-  let totalPages = $derived(Math.max(1, Math.ceil(totalRows / PAGE_SIZE)));
+  let totalPages = $derived(Math.max(1, Math.ceil(totalRows / pageSize)));
   let changeCount = $derived(changes.size);
 
   // Display columns: skip the first column (rowid)
@@ -42,7 +43,7 @@
     if (!selectedTable) return;
     loading = true;
     try {
-      const result = await api.queryTable(selectedTable, page * PAGE_SIZE, PAGE_SIZE);
+      const result = await api.queryTable(selectedTable, page * pageSize, pageSize);
       columns = result.columns;
       rows = result.rows;
       totalRows = result.total_rows;
@@ -58,10 +59,14 @@
     await loadData();
   }
 
+  function focusOnMount(node: HTMLElement) {
+    node.focus();
+  }
+
   function startEdit(rowIdx: number, colIdx: number) {
     const displayColIdx = colIdx;
     const actualColIdx = colIdx + 1; // skip rowid
-    const rowid = rows[rowIdx].values[0];
+    const rowid = rows[rowIdx].values[0] as number;
     const colName = columns[actualColIdx];
     const key = `${selectedTable}:${rowid}:${colName}`;
 
@@ -76,7 +81,7 @@
     if (!editingCell || !selectedTable) return;
     const { rowIdx, colIdx } = editingCell;
     const actualColIdx = colIdx + 1;
-    const rowid = rows[rowIdx].values[0];
+    const rowid = rows[rowIdx].values[0] as number;
     const colName = columns[actualColIdx];
     const originalValue = rows[rowIdx].values[actualColIdx];
     const parsed = parseValue(editValue);
@@ -154,7 +159,7 @@
     if (!selectedTable) return;
     try {
       const newRowid = await api.insertRow(selectedTable);
-      addToast(`Inserted row ${newRowid}`, "success");
+      setStatus(`Inserted row ${newRowid}`, "success");
       await loadData();
     } catch (e) {
       addToast(`Failed to insert row: ${e}`, "error");
@@ -166,7 +171,7 @@
     try {
       const ids = Array.from(selectedRowids);
       const deleted = await api.deleteRows(selectedTable, ids);
-      addToast(`Deleted ${deleted} row(s)`, "success");
+      setStatus(`Deleted ${deleted} row(s)`, "success");
       selectedRowids.clear();
       await loadData();
     } catch (e) {
@@ -179,7 +184,7 @@
     try {
       const changeList = Array.from(changes.values());
       const updated = await api.updateRows(changeList);
-      addToast(`Updated ${updated} row(s)`, "success");
+      setStatus(`Updated ${updated} row(s)`, "success");
       changes.clear();
       await loadData();
     } catch (e) {
@@ -241,7 +246,7 @@
           </thead>
           <tbody>
             {#each rows as row, rowIdx (row.values[0])}
-              {@const rowid = row.values[0]}
+              {@const rowid = row.values[0] as number}
               <tr class:row-selected={selectedRowids.has(rowid)}>
                 <td class="checkbox-col">
                   <input
@@ -253,17 +258,16 @@
                 {#each displayColumns as _, colIdx (colIdx)}
                   <td
                     class:changed={isCellChanged(rowIdx, colIdx)}
-                    ondblclick={() => startEdit(rowIdx, colIdx)}
+                    onclick={() => startEdit(rowIdx, colIdx)}
                   >
                     {#if editingCell && editingCell.rowIdx === rowIdx && editingCell.colIdx === colIdx}
-                      <!-- svelte-ignore a11y_autofocus -->
                       <input
                         class="cell-edit"
                         type="text"
                         bind:value={editValue}
                         onblur={commitEdit}
                         onkeydown={handleKeydown}
-                        autofocus
+                        use:focusOnMount
                       />
                     {:else}
                       <span
@@ -352,7 +356,7 @@
   .row-count {
     font-size: 11px;
     color: var(--text-muted);
-    font-family: monospace;
+    font-family: var(--font-mono);
     margin-left: 8px;
     flex-shrink: 0;
   }
@@ -475,7 +479,7 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
-    font-family: monospace;
+    font-family: var(--font-mono);
   }
 
   .data-grid thead {
@@ -530,7 +534,7 @@
     border-radius: var(--radius-sm);
     background: var(--bg-card);
     color: var(--text-primary);
-    font-family: monospace;
+    font-family: var(--font-mono);
     font-size: 13px;
     outline: none;
   }

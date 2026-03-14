@@ -1,17 +1,27 @@
 <script lang="ts">
   import JsonNode from "$lib/components/JsonNode.svelte";
   import { trackEdit } from "$lib/stores";
+  import { getPreferences } from "$lib/preferences";
 
   let { data, engineId = "" }: { data: unknown; engineId?: string } = $props();
 
   function handleRawEdit(path: string[], oldValue: unknown, newValue: unknown) {
-    trackEdit(['raw', ...path], oldValue, newValue, `Edit raw field ${path.join('.')}`);
+    trackEdit(["raw", ...path], oldValue, newValue, `Edit raw field ${path.join(".")}`);
   }
   let searchInput = $state("");
   let search = $state("");
   let matchCount = $state(0);
   let expandAll = $state(false);
   let copyLabel = $state("Copy raw");
+
+  // Shared controller so only one JsonNode can be in edit mode at a time
+  let activeCommit: (() => void) | null = null;
+  const editController = {
+    register(commit: () => void) {
+      if (activeCommit && activeCommit !== commit) activeCommit();
+      activeCommit = commit;
+    },
+  };
 
   // Ren'Py-specific filters
   let isRenpy = $derived(engineId === "renpy");
@@ -27,7 +37,7 @@
     debounceTimer = setTimeout(() => {
       matchCount = 0;
       search = val;
-    }, 400);
+    }, getPreferences().searchDebounce);
   }
 
   // "Hide Dialogs": any store.* entry that is a complex object with a __class__
@@ -117,7 +127,17 @@
 {/if}
 
 <div class="json-tree">
-  <JsonNode key="root" value={data} depth={0} {search} {expandAll} {filterFn} onedit={handleRawEdit} bind:matchCount />
+  <JsonNode
+    key="root"
+    value={data}
+    depth={0}
+    {search}
+    {expandAll}
+    {filterFn}
+    onedit={handleRawEdit}
+    {editController}
+    bind:matchCount
+  />
 </div>
 
 <style>
@@ -169,7 +189,7 @@
     padding: 12px;
     overflow: auto;
     max-height: calc(100vh - 200px);
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: var(--font-mono);
     font-size: 13px;
     line-height: 1.6;
   }

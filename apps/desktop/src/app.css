@@ -25,7 +25,13 @@
 
   --border: #1a1a28;
   --border-focus: #6c5ce7;
-  --border-spectral: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.4), rgba(59, 130, 246, 0.4), transparent);
+  --border-spectral: linear-gradient(
+    90deg,
+    transparent,
+    rgba(168, 85, 247, 0.4),
+    rgba(59, 130, 246, 0.4),
+    transparent
+  );
 
   /* New Obsidian Prism variables */
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -36,6 +42,7 @@
   --radius-lg: 12px;
 
   --transition: 0.2s ease;
+  --font-mono: "Cascadia Code", "Fira Code", "Consolas", monospace;
 
   font-family: "Segoe UI", Inter, system-ui, sans-serif;
   font-size: 14px;
@@ -158,4 +165,19 @@ button:active {
   background: var(--border-spectral);
   border: none;
   margin: 0;
+}
+
+html.light {
+  --bg-primary: #f8f8fc;
+  --bg-secondary: #f0f0f6;
+  --bg-tertiary: #e8e8f0;
+  --bg-card: #ffffff;
+  --bg-hover: #ededf4;
+  --bg-input: #ffffff;
+  --text-primary: #1a1a2e;
+  --text-secondary: #555570;
+  --text-muted: #888898;
+  --border: #d8d8e4;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.12);
 }

@@ -1,8 +1,15 @@
 <script lang="ts">
   import type { Inventory } from "$lib/api";
-  import { batchMode, batchSelected, toggleBatchItem, history, markModified, trackEdit } from '$lib/stores';
-  import type { Change } from '$lib/stores/history';
-  import BatchToolbar from '$lib/components/BatchToolbar.svelte';
+  import {
+    batchMode,
+    batchSelected,
+    toggleBatchItem,
+    history,
+    markModified,
+    trackEdit,
+  } from "$lib/stores";
+  import type { Change } from "$lib/stores/history";
+  import BatchToolbar from "$lib/components/BatchToolbar.svelte";
 
   let { inventory = $bindable() }: { inventory: Inventory } = $props();
   let search = $state("");
@@ -22,22 +29,27 @@
     const section = inventory[activeSection];
     const numVal = value ? Number(value) : 0;
 
-    if (action === 'set_quantity') {
+    if (action === "set_quantity") {
       for (let i = 0; i < section.length; i++) {
         if (!selectedIds.has(String(section[i].id))) continue;
-        changes.push({ path: ['inventory', activeSection, String(i), 'quantity'], oldValue: section[i].quantity, newValue: numVal });
+        changes.push({
+          path: ["inventory", activeSection, String(i), "quantity"],
+          oldValue: section[i].quantity,
+          newValue: numVal,
+        });
         section[i].quantity = numVal;
         markModified(`inventory.${activeSection}.${i}.quantity`);
       }
-    } else if (action === 'remove_selected') {
+    } else if (action === "remove_selected") {
       const oldArray = structuredClone(section);
-      const newArray = section.filter(item => !selectedIds.has(String(item.id)));
-      changes.push({ path: ['inventory', activeSection], oldValue: oldArray, newValue: newArray });
+      const newArray = section.filter((item) => !selectedIds.has(String(item.id)));
+      changes.push({ path: ["inventory", activeSection], oldValue: oldArray, newValue: newArray });
       inventory[activeSection] = newArray;
     }
 
     if (changes.length > 0) {
       history.push({ description: `Batch ${action} on ${selectedIds.size} items`, changes });
+      inventory[activeSection] = inventory[activeSection].slice(); // trigger reactivity for batch mutations
     }
   }
 </script>
@@ -60,8 +72,8 @@
 <BatchToolbar
   items={filteredItems.map((item) => ({ id: String(item.id) }))}
   actions={[
-    { label: 'Set quantity...', value: 'set_quantity' },
-    { label: 'Remove selected', value: 'remove_selected' },
+    { label: "Set quantity...", value: "set_quantity" },
+    { label: "Remove selected", value: "remove_selected" },
   ]}
   onapply={handleBatchAction}
 />
@@ -91,15 +103,18 @@
         class="col-qty"
         type="number"
         value={item.quantity}
-        onfocus={(e) => { e.currentTarget.dataset.old = String(item.quantity); }}
+        onfocus={(e) => {
+          e.currentTarget.dataset.old = String(item.quantity);
+        }}
         onchange={(e) => {
           const oldVal = Number(e.currentTarget.dataset.old);
           const newVal = Number(e.currentTarget.value);
           item.quantity = newVal;
           trackEdit(
-            ['inventory', activeSection, String(idx), 'quantity'],
-            oldVal, newVal,
-            `Set ${item.name} quantity to ${newVal}`
+            ["inventory", activeSection, String(idx), "quantity"],
+            oldVal,
+            newVal,
+            `Set ${item.name} quantity to ${newVal}`,
           );
           markModified(`inventory.${activeSection}.${idx}`);
         }}
