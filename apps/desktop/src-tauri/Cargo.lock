@@ -3141,6 +3141,7 @@ dependencies = [
  "base64 0.22.1",
  "cbc",
  "chrono",
+ "dirs",
  "flate2",
  "hex",
  "lz-str",

@@ -217,21 +217,6 @@ pub struct SaveDirEntry {
     pub file_count: usize,
 }
 
-fn expand_env(path: &str) -> String {
-    let mut result = path.to_string();
-    if let Ok(appdata) = std::env::var("APPDATA") {
-        result = result.replace("%APPDATA%", &appdata);
-    }
-    if let Ok(localappdata) = std::env::var("LOCALAPPDATA") {
-        result = result.replace("%LOCALAPPDATA%", &localappdata);
-    }
-    if let Ok(userprofile) = std::env::var("USERPROFILE") {
-        result = result.replace("%USERPROFILE%", &userprofile);
-    }
-    // Normalize to native path separators after env expansion
-    std::path::PathBuf::from(result).to_string_lossy().into_owned()
-}
-
 #[tauri::command]
 pub async fn browse_save_dir(
     dir: Option<String>,
@@ -241,7 +226,7 @@ pub async fn browse_save_dir(
     let base = match dir {
         Some(d) => std::path::PathBuf::from(d),
         None => match default_dir {
-            Some(dd) => std::path::PathBuf::from(expand_env(&dd)),
+            Some(dd) => std::path::PathBuf::from(crate::platform::expand_env(&dd)),
             None => return Err("No directory specified and no default directory provided".to_string()),
         },
     };

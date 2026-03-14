@@ -1,6 +1,7 @@
 mod backup;
 mod commands;
 mod engines;
+pub(crate) mod platform;
 mod watcher;
 
 use commands::AppState;

@@ -39,5 +39,6 @@ marshal-rs = { path = "../../../crates/marshal-rs" }
 uesave = "0.7"
 rusqlite = { version = "0.31", features = ["bundled"] }
 quick-xml = { version = "0.37", features = ["serialize"] }
+dirs = "6"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
