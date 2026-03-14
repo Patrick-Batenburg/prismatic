@@ -210,12 +210,17 @@ impl EnginePlugin for RenpyPlugin {
             supports_debug: true,
             save_extensions: vec!["save".into()],
             description: "Ren'Py visual novel engine saves".into(),
-            save_dir_hint: Some(
+            save_dir_hint: Some(if cfg!(target_os = "windows") {
                 "Select the folder containing your .save files.\n\
                  Typically found in:\n\
                  <game_folder>/game/saves/ or %APPDATA%\\RenPy\\<game_name>"
-                    .to_string(),
-            ),
+                    .to_string()
+            } else {
+                "Select the folder containing your .save files.\n\
+                 Typically found in:\n\
+                 <game_folder>/game/saves/ or ~/.renpy/<game_name>"
+                    .to_string()
+            }),
             pick_mode: "folder".into(),
         }
     }

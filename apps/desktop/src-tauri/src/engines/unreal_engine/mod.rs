@@ -16,10 +16,15 @@ impl EnginePlugin for UnrealPlugin {
             supports_debug: false,
             save_extensions: vec!["sav".to_string()],
             description: "Unreal Engine game saves".to_string(),
-            save_dir_hint: Some(
-                "Select the folder containing your .sav save files. Usually somewhere in AppData."
-                    .to_string(),
-            ),
+            save_dir_hint: Some(if cfg!(target_os = "windows") {
+                "Select the folder containing your .sav save files.\n\
+                 Usually somewhere in AppData."
+                    .to_string()
+            } else {
+                "Select the folder containing your .sav save files.\n\
+                 Usually inside your Wine prefix under AppData/Local/<game>/Saved/SaveGames."
+                    .to_string()
+            }),
             pick_mode: "folder".to_string(),
         }
     }

@@ -15,10 +15,16 @@ impl EnginePlugin for UnityPlugin {
             supports_debug: false,
             save_extensions: SUPPORTED_EXTENSIONS.iter().map(|s| s.to_string()).collect(),
             description: "Unity game saves (JSON, XML, ES3)".to_string(),
-            save_dir_hint: Some(
-                "Select the folder containing your Unity save files. Usually in AppData/LocalLow/CompanyName/GameName."
-                    .to_string(),
-            ),
+            save_dir_hint: Some(if cfg!(target_os = "windows") {
+                "Select the folder containing your Unity save files.\n\
+                 Usually in AppData/LocalLow/CompanyName/GameName."
+                    .to_string()
+            } else {
+                "Select the folder containing your Unity save files.\n\
+                 Usually in ~/.config/unity3d/CompanyName/GameName (native)\n\
+                 or inside your Wine prefix under AppData/LocalLow/CompanyName/GameName."
+                    .to_string()
+            }),
             pick_mode: "folder".to_string(),
         }
     }

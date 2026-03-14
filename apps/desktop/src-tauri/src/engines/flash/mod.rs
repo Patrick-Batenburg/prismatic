@@ -15,12 +15,18 @@ impl EnginePlugin for FlashSolPlugin {
             supports_debug: false,
             save_extensions: vec!["sol".to_string()],
             description: "Flash .sol saves".to_string(),
-            save_dir_hint: Some(
+            save_dir_hint: Some(if cfg!(target_os = "windows") {
                 "Select the folder containing your .sol save files.\n\
                  Typically found in:\n\
                  C:\\Users\\<you>\\AppData\\Roaming\\Macromedia\\Flash Player\\#SharedObjects"
-                    .to_string(),
-            ),
+                    .to_string()
+            } else {
+                "Select the folder containing your .sol save files.\n\
+                 Typically found in:\n\
+                 ~/.macromedia/Flash_Player/#SharedObjects (native)\n\
+                 or inside your Wine prefix under AppData/Roaming/Macromedia/Flash Player/#SharedObjects"
+                    .to_string()
+            }),
             pick_mode: "folder".to_string(),
         }
     }
