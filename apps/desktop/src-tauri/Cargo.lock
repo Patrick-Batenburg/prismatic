@@ -2326,8 +2326,6 @@ dependencies = [
 [[package]]
 name = "marshal-rs"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b852cbf69f1d8f3ba2ab3b5996dd6b38ec75d7953b0e41dfa47631efa7bf971"
 dependencies = [
  "bitflags 2.11.0",
  "encoding_rs",

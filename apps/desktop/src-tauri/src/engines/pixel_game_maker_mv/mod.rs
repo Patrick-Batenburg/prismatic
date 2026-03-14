@@ -134,7 +134,11 @@ impl EnginePlugin for PgmmvPlugin {
             supports_debug: false,
             save_extensions: vec!["json".into()],
             description: "Pixel Game Maker MV encrypted saves".into(),
-            save_dir_hint: None,
+            save_dir_hint: Some(
+                "Select the game folder containing your save .json files.\n\
+                 Save files are usually in the game's root directory."
+                    .to_string(),
+            ),
             pick_mode: "folder".into(),
         }
     }

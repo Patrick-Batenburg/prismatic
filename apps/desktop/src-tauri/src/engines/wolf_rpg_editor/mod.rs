@@ -19,7 +19,11 @@ impl EnginePlugin for WolfRpgEditorPlugin {
             supports_debug: true,
             save_extensions: vec!["sav".into()],
             description: "Wolf RPG Editor game saves".into(),
-            save_dir_hint: None,
+            save_dir_hint: Some(
+                "Select the game folder containing your .sav save files.\n\
+                 Save files are usually in the game's root directory."
+                    .to_string(),
+            ),
             pick_mode: "folder".into(),
         }
     }

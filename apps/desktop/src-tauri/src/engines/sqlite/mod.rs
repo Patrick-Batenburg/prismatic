@@ -111,8 +111,12 @@ impl EnginePlugin for SqlitePlugin {
             supports_debug: false,
             save_extensions: SAVE_EXTENSIONS.iter().map(|s| s.to_string()).collect(),
             description: "Generic SQLite database save files".to_string(),
-            save_dir_hint: None,
-            pick_mode: "file".to_string(),
+            save_dir_hint: Some(
+                "Select the folder containing your SQLite save database.\n\
+                 Common extensions: .db, .sqlite, .sqlite3, .save"
+                    .to_string(),
+            ),
+            pick_mode: "folder".to_string(),
         }
     }
 

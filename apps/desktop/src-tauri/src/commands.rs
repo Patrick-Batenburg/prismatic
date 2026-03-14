@@ -228,7 +228,8 @@ fn expand_env(path: &str) -> String {
     if let Ok(userprofile) = std::env::var("USERPROFILE") {
         result = result.replace("%USERPROFILE%", &userprofile);
     }
-    result
+    // Normalize to native path separators after env expansion
+    std::path::PathBuf::from(result).to_string_lossy().into_owned()
 }
 
 #[tauri::command]

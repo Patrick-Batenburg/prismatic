@@ -878,7 +878,11 @@ impl EnginePlugin for RpgMakerVxaPlugin {
             supports_debug: true,
             save_extensions: vec!["rvdata2".into()],
             description: "RPG Maker VX Ace game saves".into(),
-            save_dir_hint: None,
+            save_dir_hint: Some(
+                "Select the game folder containing your .rvdata2 save files.\n\
+                 Save files are usually in the game's root directory."
+                    .to_string(),
+            ),
             pick_mode: "folder".into(),
         }
     }
@@ -985,9 +989,20 @@ impl EnginePlugin for RpgMakerVxaPlugin {
         Self::apply_party(&mut contents, data);
         Self::apply_inventory(&mut contents, data);
 
-        // 4. Re-dump and write
+        // 4. Re-dump
         let mut out = marshal_rs::dump(header, None);
-        out.extend(marshal_rs::dump(contents, None));
+        let contents_bytes = marshal_rs::dump(contents, None);
+
+        // 5. Safety: verify the dumped contents can be loaded back
+        //    This prevents writing a corrupted save file.
+        if let Err(e) = std::panic::catch_unwind(|| marshal_rs::load(&contents_bytes, None)) {
+            return Err(format!(
+                "Marshal round-trip validation failed (dump produced invalid output): {:?}",
+                e
+            ));
+        }
+
+        out.extend(contents_bytes);
         fs::write(save_path, &out).map_err(|e| format!("Failed to write save: {e}"))?;
 
         Ok(())
