@@ -38,6 +38,15 @@ impl RenpyPlugin {
                     dirs.push(appdata_saves);
                 }
             }
+
+            // Linux native: ~/.renpy/<save_dir>/
+            #[cfg(target_os = "linux")]
+            if let Some(home) = dirs::home_dir() {
+                let renpy_saves = home.join(".renpy").join(&save_dir_name);
+                if renpy_saves.is_dir() {
+                    dirs.push(renpy_saves);
+                }
+            }
         }
 
         // Also check AppData/RenPy/ for any directory matching the game name
@@ -46,6 +55,29 @@ impl RenpyPlugin {
                 let renpy_dir = PathBuf::from(appdata).join("RenPy");
                 if renpy_dir.is_dir() {
                     // Try to find a matching directory
+                    let game_name = game_dir
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_lowercase();
+                    if let Ok(entries) = fs::read_dir(&renpy_dir) {
+                        for entry in entries.flatten() {
+                            let name = entry.file_name().to_string_lossy().to_lowercase();
+                            if name.contains(&game_name) || game_name.contains(&name) {
+                                dirs.push(entry.path());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also check ~/.renpy/ on Linux for any directory matching the game name
+        #[cfg(target_os = "linux")]
+        if dirs.is_empty() {
+            if let Some(home) = dirs::home_dir() {
+                let renpy_dir = home.join(".renpy");
+                if renpy_dir.is_dir() {
                     let game_name = game_dir
                         .file_name()
                         .unwrap_or_default()
