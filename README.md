@@ -1,7 +1,88 @@
-# Tauri + SvelteKit + TypeScript
+# Prismatic
 
-This template should help get you started developing with Tauri, SvelteKit and TypeScript in Vite.
+A cross-platform game save editor with support for 10 game engines. Edit party stats, inventory, variables, switches, and raw save data through a unified interface.
 
-## Recommended IDE Setup
+## Supported Engines
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
+| Engine | Extensions | Debug Patches |
+|--------|-----------|:---:|
+| RPG Maker MV/MZ | `.rpgsave`, `.rmmzsave` | Yes |
+| RPG Maker VX Ace | `.rvdata2` | Yes |
+| Ren'Py | `.save` | Yes |
+| Wolf RPG Editor | `.sav` | Yes |
+| Unity | `.json`, `.xml`, `.es3` | |
+| Unreal Engine | `.sav` | |
+| Pixel Game Maker MV | `.json` | |
+| Flash / AIR | `.sol` | |
+| SugarCube / Twine 2 | `.save` | |
+| SQLite | `.db`, `.sqlite`, `.sqlite3` | |
+
+## Features
+
+- **Structured editing** — party, inventory, currency, variables, switches
+- **Raw JSON editor** — edit any value in the save data directly
+- **Save comparison** — diff two saves with patience diff algorithm
+- **Debug patches** — inject in-game debug consoles for supported engines
+- **File watching** — auto-detect save changes
+- **Backup manager** — automatic backups before writes
+- **Cross-platform** — Windows and Linux with platform-specific save directory hints
+
+## Tech Stack
+
+- **Frontend:** Svelte 5, SvelteKit, TypeScript, Vite
+- **Backend:** Rust, Tauri v2
+- **Build:** pnpm, Turborepo
+- **Testing:** Vitest (frontend), `cargo test` (backend)
+
+## Development
+
+```bash
+pnpm install
+
+# Run the desktop app with hot-reload
+cd apps/desktop
+pnpm tauri dev
+
+# Lint
+pnpm lint
+
+# Test
+pnpm test
+cd src-tauri && cargo test
+```
+
+## Building
+
+```bash
+cd apps/desktop
+
+# Windows (MSI + NSIS installer)
+pnpm tauri build --bundles msi
+pnpm tauri build --bundles nsis
+
+# Linux
+pnpm tauri build --bundles deb
+pnpm tauri build --bundles rpm
+pnpm tauri build --bundles appimage
+```
+
+## Project Structure
+
+```
+prismatic/
+├── apps/desktop/           # Tauri desktop application
+│   ├── src/                # SvelteKit frontend
+│   │   ├── lib/            # Shared modules, stores, components
+│   │   └── routes/         # Page routes (home, editor)
+│   └── src-tauri/          # Rust backend
+│       └── src/engines/    # 10 engine plugins
+├── crates/marshal-rs/      # Ruby Marshal serialization library
+├── packages/
+│   ├── eslint-config/      # Shared ESLint config
+│   └── prettier-config/    # Shared Prettier config
+└── .github/workflows/      # CI/CD pipelines
+```
+
+## License
+
+[GPL-3.0](LICENSE)

@@ -35,6 +35,7 @@
   import DiffView from "$lib/components/DiffView.svelte";
   import SaveFolderPicker from "$lib/components/SaveFolderPicker.svelte";
   import { preferencesStore } from "$lib/preferences";
+  import { getEngineDefaults } from "$lib/engine-config";
   import { matchesCombo } from "$lib/keybindings";
 
   const engine = $derived($currentEngine);
@@ -110,15 +111,26 @@
     loading = true;
     try {
       const data = await api.loadSave(sf.path);
+      // Update local save state directly so tabs derivation is immediately current.
+      // The store is also updated so other consumers stay in sync.
+      save = data;
       currentSave.set(data);
       currentSavePath.set(sf.path);
       modifiedFields.set(new Set());
       history.clear();
       setStatus(`Loaded ${sf.name}`, "success");
 
-      // Auto-select first available tab
-      if (tabs.length > 0 && !tabs.find((t) => t.id === activeTab)) {
-        activeTab = tabs[0].id;
+      // Auto-select first available tab based on loaded data
+      const available = [
+        { id: "party", available: !!(data.party ?? data.currency) },
+        { id: "inventory", available: !!data.inventory },
+        { id: "variables", available: !!data.variables },
+        { id: "switches", available: !!data.switches },
+        { id: "raw", available: true },
+      ].filter((t) => t.available);
+
+      if (available.length > 0 && !available.find((t) => t.id === activeTab)) {
+        activeTab = available[0].id;
       }
     } catch (e) {
       addToast(`Failed to load save: ${e}`, "error");
@@ -540,71 +552,7 @@
 
   {#if showFlashPicker && engine}
     {@const pickerConfig = (() => {
-      const engineDefaults: Record<
-        string,
-        { extension: string; defaultDir: string | null; badgeColor: string; title: string }
-      > = {
-        flash: {
-          extension: "sol",
-          defaultDir: "%APPDATA%\\Macromedia\\Flash Player\\#SharedObjects",
-          badgeColor: "#f44336",
-          title: "Select Flash Save Folder",
-        },
-        "unreal-engine": {
-          extension: "sav",
-          defaultDir: "%LOCALAPPDATA%",
-          badgeColor: "#1565c0",
-          title: "Select Unreal Save Folder",
-        },
-        sugarcube: {
-          extension: "save",
-          defaultDir: "%USERPROFILE%\\Downloads",
-          badgeColor: "#8b5cf6",
-          title: "Select SugarCube Save Folder",
-        },
-        renpy: {
-          extension: "save",
-          defaultDir: gameDir ? `${gameDir}\\game\\saves` : "%APPDATA%\\RenPy",
-          badgeColor: "#ff7eb3",
-          title: "Select Ren'Py Save Folder",
-        },
-        unity: {
-          extension: "json",
-          defaultDir: "%LOCALAPPDATA%Low",
-          badgeColor: "#222c37",
-          title: "Select Unity Save Folder",
-        },
-        "rpg-maker-mv": {
-          extension: "rpgsave",
-          defaultDir: gameDir,
-          badgeColor: "#4fc3f7",
-          title: "Select RPG Maker MV/MZ Game Folder",
-        },
-        "rpg-maker-vx-ace": {
-          extension: "rvdata2",
-          defaultDir: gameDir,
-          badgeColor: "#66bb6a",
-          title: "Select RPG Maker VX Ace Game Folder",
-        },
-        "pixel-game-maker-mv": {
-          extension: "json",
-          defaultDir: gameDir,
-          badgeColor: "#ff7043",
-          title: "Select Pixel Game Maker MV Game Folder",
-        },
-        "wolf-rpg-editor": {
-          extension: "sav",
-          defaultDir: gameDir,
-          badgeColor: "#ff9800",
-          title: "Select Wolf RPG Editor Game Folder",
-        },
-        sqlite: {
-          extension: "db",
-          defaultDir: gameDir,
-          badgeColor: "#003b57",
-          title: "Select SQLite Save Folder",
-        },
-      };
+      const engineDefaults = getEngineDefaults(gameDir);
 
       const config = engineDefaults[engine.id] ?? {
         extension: engine.save_extensions[0] ?? "sav",

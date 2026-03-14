@@ -919,7 +919,7 @@ impl EnginePlugin for RpgMakerVxaPlugin {
                 let modified = meta
                     .modified()
                     .ok()
-                    .map(|t| chrono::DateTime::<Local>::from(t).to_rfc3339())
+                    .map(crate::engines::utils::format_modified_time)
                     .unwrap_or_default();
 
                 saves.push(SaveFile {

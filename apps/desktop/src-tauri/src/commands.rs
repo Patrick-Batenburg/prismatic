@@ -10,6 +10,9 @@ use tauri::State;
 /// Cache for deep scan results: (dir_path, extension) -> (file_count, dir_modified_time)
 pub type ScanCache = HashMap<(String, String), (usize, SystemTime)>;
 
+/// Maximum number of entries kept in the scan cache before it is cleared.
+const MAX_CACHE_ENTRIES: usize = 500;
+
 pub struct AppState {
     pub registry: EngineRegistry,
     pub current_engine: Mutex<Option<String>>,
@@ -23,13 +26,13 @@ impl AppState {
         let engine_id = self
             .current_engine
             .lock()
-            .unwrap()
+            .map_err(|e| format!("Lock poisoned: {e}"))?
             .clone()
             .ok_or("No engine selected")?;
         let game_dir = self
             .current_game_dir
             .lock()
-            .unwrap()
+            .map_err(|e| format!("Lock poisoned: {e}"))?
             .clone()
             .ok_or("No game directory selected")?;
         let engine = self
@@ -53,8 +56,8 @@ pub fn detect_engine(state: State<AppState>, game_dir: String) -> Option<EngineI
 
 #[tauri::command]
 pub fn set_game(state: State<AppState>, engine_id: String, game_dir: String) -> Result<(), String> {
-    *state.current_engine.lock().unwrap() = Some(engine_id);
-    *state.current_game_dir.lock().unwrap() = Some(game_dir);
+    *state.current_engine.lock().map_err(|e| format!("Lock poisoned: {e}"))? = Some(engine_id);
+    *state.current_game_dir.lock().map_err(|e| format!("Lock poisoned: {e}"))? = Some(game_dir);
     Ok(())
 }
 
@@ -73,7 +76,7 @@ pub async fn load_save(state: State<'_, AppState>, save_path: String) -> Result<
     let save_path_clone = save_path.clone();
     let data = engine.parse_save(Path::new(&save_path_clone), Path::new(&game_dir))?;
 
-    *state.last_loaded_save.lock().unwrap() = Some((save_path, data.raw.clone()));
+    *state.last_loaded_save.lock().map_err(|e| format!("Lock poisoned: {e}"))? = Some((save_path, data.raw.clone()));
 
     Ok(data)
 }
@@ -114,7 +117,7 @@ pub async fn get_names(state: State<'_, AppState>) -> Result<NameMap, String> {
 pub fn get_diff(state: State<AppState>, save_path: String) -> Result<Vec<DiffEntry>, String> {
     let (engine, game_dir) = state.engine_and_dir()?;
 
-    let last = state.last_loaded_save.lock().unwrap();
+    let last = state.last_loaded_save.lock().map_err(|e| format!("Lock poisoned: {e}"))?;
     let (_, old_raw) = last.as_ref().ok_or("No previous save loaded for diff")?;
 
     let new_data = engine.parse_save(Path::new(&save_path), Path::new(&game_dir))?;
@@ -130,21 +133,25 @@ pub struct DiffEntry {
 }
 
 fn compute_diff(old: &serde_json::Value, new: &serde_json::Value, path: &str) -> Vec<DiffEntry> {
+    fn child_path(parent: &str, key: &str) -> String {
+        if parent.is_empty() {
+            key.to_string()
+        } else {
+            format!("{parent}.{key}")
+        }
+    }
+
     let mut diffs = Vec::new();
 
     match (old, new) {
         (serde_json::Value::Object(o), serde_json::Value::Object(n)) => {
             for (key, old_val) in o {
-                let child_path = if path.is_empty() {
-                    key.clone()
-                } else {
-                    format!("{path}.{key}")
-                };
+                let cp = child_path(path, key);
                 if let Some(new_val) = n.get(key) {
-                    diffs.extend(compute_diff(old_val, new_val, &child_path));
+                    diffs.extend(compute_diff(old_val, new_val, &cp));
                 } else {
                     diffs.push(DiffEntry {
-                        path: child_path,
+                        path: cp,
                         old_value: Some(old_val.clone()),
                         new_value: None,
                     });
@@ -152,13 +159,8 @@ fn compute_diff(old: &serde_json::Value, new: &serde_json::Value, path: &str) ->
             }
             for (key, new_val) in n {
                 if !o.contains_key(key) {
-                    let child_path = if path.is_empty() {
-                        key.clone()
-                    } else {
-                        format!("{path}.{key}")
-                    };
                     diffs.push(DiffEntry {
-                        path: child_path,
+                        path: child_path(path, key),
                         old_value: None,
                         new_value: Some(new_val.clone()),
                     });
@@ -291,10 +293,11 @@ fn count_files_recursive_cached(
     // Check cache: if dir modified time matches, use cached count
     if let Ok(meta) = std::fs::metadata(dir) {
         if let Ok(modified) = meta.modified() {
-            let cache_guard = cache.lock().unwrap();
-            if let Some(&(count, cached_time)) = cache_guard.get(&(dir_str.clone(), ext_str.clone())) {
-                if cached_time == modified {
-                    return count;
+            if let Ok(cache_guard) = cache.lock() {
+                if let Some(&(count, cached_time)) = cache_guard.get(&(dir_str.clone(), ext_str.clone())) {
+                    if cached_time == modified {
+                        return count;
+                    }
                 }
             }
         }
@@ -313,11 +316,15 @@ fn count_files_recursive_cached(
         }
     }
 
-    // Store in cache
+    // Store in cache; evict everything if the cache grows too large
     if let Ok(meta) = std::fs::metadata(dir) {
         if let Ok(modified) = meta.modified() {
-            let mut cache_guard = cache.lock().unwrap();
-            cache_guard.insert((dir_str, ext_str), (count, modified));
+            if let Ok(mut cache_guard) = cache.lock() {
+                cache_guard.insert((dir_str, ext_str), (count, modified));
+                if cache_guard.len() > MAX_CACHE_ENTRIES {
+                    cache_guard.clear();
+                }
+            }
         }
     }
 
@@ -348,13 +355,10 @@ pub async fn deep_scan_dir(
 
     let total = subdirs.len();
 
-    // Clone the cache for the scan operation
-    let scan_cache = state.scan_cache.lock().unwrap().clone();
-    let cache = std::sync::Arc::new(Mutex::new(scan_cache));
-
-    // Scan each subdirectory and emit progress
+    // Scan each subdirectory and emit progress, sharing state.scan_cache directly
+    let cache = &state.scan_cache;
     for (i, subdir) in subdirs.iter().enumerate() {
-        let count = count_files_recursive_cached(subdir, &extension, &cache);
+        let count = count_files_recursive_cached(subdir, &extension, cache);
 
         let _ = app.emit("scan-progress", ScanProgressEvent {
             path: subdir.to_string_lossy().to_string(),
@@ -363,13 +367,6 @@ pub async fn deep_scan_dir(
             folders_total: total,
         });
     }
-
-    // Write updated cache back to AppState
-    let updated = std::sync::Arc::try_unwrap(cache)
-        .unwrap_or_else(|arc| Mutex::new(arc.lock().unwrap().clone()))
-        .into_inner()
-        .unwrap();
-    *state.scan_cache.lock().unwrap() = updated;
 
     let _ = app.emit("scan-complete", ());
 
@@ -446,7 +443,7 @@ pub async fn query_table(
     limit: usize,
 ) -> Result<TableQueryResult, String> {
     let save_path = {
-        let guard = state.last_loaded_save.lock().unwrap();
+        let guard = state.last_loaded_save.lock().map_err(|e| format!("Lock poisoned: {e}"))?;
         let (path, _) = guard.as_ref().ok_or("No save file loaded")?;
         path.clone()
     };
@@ -518,7 +515,7 @@ pub async fn update_rows(
     changes: Vec<CellChange>,
 ) -> Result<usize, String> {
     let save_path = {
-        let guard = state.last_loaded_save.lock().unwrap();
+        let guard = state.last_loaded_save.lock().map_err(|e| format!("Lock poisoned: {e}"))?;
         let (path, _) = guard.as_ref().ok_or("No save file loaded")?;
         path.clone()
     };
@@ -575,7 +572,7 @@ pub async fn insert_row(
     table_name: String,
 ) -> Result<i64, String> {
     let save_path = {
-        let guard = state.last_loaded_save.lock().unwrap();
+        let guard = state.last_loaded_save.lock().map_err(|e| format!("Lock poisoned: {e}"))?;
         let (path, _) = guard.as_ref().ok_or("No save file loaded")?;
         path.clone()
     };
@@ -599,7 +596,7 @@ pub async fn delete_rows(
     rowids: Vec<i64>,
 ) -> Result<usize, String> {
     let save_path = {
-        let guard = state.last_loaded_save.lock().unwrap();
+        let guard = state.last_loaded_save.lock().map_err(|e| format!("Lock poisoned: {e}"))?;
         let (path, _) = guard.as_ref().ok_or("No save file loaded")?;
         path.clone()
     };
@@ -628,4 +625,165 @@ pub async fn delete_rows(
         .map_err(|e| format!("Failed to commit transaction: {e}"))?;
 
     Ok(deleted)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    // 1. Identical values — no diffs produced
+    #[test]
+    fn identical_values_produce_no_diffs() {
+        let v = json!({"x": 1, "y": "hello"});
+        let diffs = compute_diff(&v, &v, "");
+        assert!(diffs.is_empty(), "expected no diffs, got: {diffs:?}");
+    }
+
+    // 2. Simple scalar change — string "a" → "b" produces one DiffEntry
+    #[test]
+    fn simple_scalar_change() {
+        let old = json!("a");
+        let new = json!("b");
+        let diffs = compute_diff(&old, &new, "field");
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].path, "field");
+        assert_eq!(diffs[0].old_value, Some(json!("a")));
+        assert_eq!(diffs[0].new_value, Some(json!("b")));
+    }
+
+    // 3. Object key added — new key in second object
+    #[test]
+    fn object_key_added() {
+        let old = json!({"a": 1});
+        let new = json!({"a": 1, "b": 2});
+        let diffs = compute_diff(&old, &new, "");
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].path, "b");
+        assert_eq!(diffs[0].old_value, None);
+        assert_eq!(diffs[0].new_value, Some(json!(2)));
+    }
+
+    // 4. Object key removed — key missing in second object
+    #[test]
+    fn object_key_removed() {
+        let old = json!({"a": 1, "b": 2});
+        let new = json!({"a": 1});
+        let diffs = compute_diff(&old, &new, "");
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].path, "b");
+        assert_eq!(diffs[0].old_value, Some(json!(2)));
+        assert_eq!(diffs[0].new_value, None);
+    }
+
+    // 5. Object key changed — same key, different value
+    #[test]
+    fn object_key_changed() {
+        let old = json!({"score": 10});
+        let new = json!({"score": 99});
+        let diffs = compute_diff(&old, &new, "");
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].path, "score");
+        assert_eq!(diffs[0].old_value, Some(json!(10)));
+        assert_eq!(diffs[0].new_value, Some(json!(99)));
+    }
+
+    // 6. Nested object change — path should be "parent.child"
+    #[test]
+    fn nested_object_change() {
+        let old = json!({"parent": {"child": "before"}});
+        let new = json!({"parent": {"child": "after"}});
+        let diffs = compute_diff(&old, &new, "");
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].path, "parent.child");
+        assert_eq!(diffs[0].old_value, Some(json!("before")));
+        assert_eq!(diffs[0].new_value, Some(json!("after")));
+    }
+
+    // 7. Array element changed — path should be "arr[0]"
+    #[test]
+    fn array_element_changed() {
+        let old = json!({"arr": [1, 2, 3]});
+        let new = json!({"arr": [9, 2, 3]});
+        let diffs = compute_diff(&old, &new, "");
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].path, "arr[0]");
+        assert_eq!(diffs[0].old_value, Some(json!(1)));
+        assert_eq!(diffs[0].new_value, Some(json!(9)));
+    }
+
+    // 8. Array length increased — new elements show as additions
+    #[test]
+    fn array_length_increased() {
+        let old = json!([1, 2]);
+        let new = json!([1, 2, 3]);
+        let diffs = compute_diff(&old, &new, "arr");
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].path, "arr[2]");
+        assert_eq!(diffs[0].old_value, None);
+        assert_eq!(diffs[0].new_value, Some(json!(3)));
+    }
+
+    // 9. Array length decreased — removed elements show as removals
+    #[test]
+    fn array_length_decreased() {
+        let old = json!([1, 2, 3]);
+        let new = json!([1, 2]);
+        let diffs = compute_diff(&old, &new, "arr");
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].path, "arr[2]");
+        assert_eq!(diffs[0].old_value, Some(json!(3)));
+        assert_eq!(diffs[0].new_value, None);
+    }
+
+    // 10. Mixed types — object vs array should show as single change
+    #[test]
+    fn mixed_types_object_vs_array() {
+        let old = json!({"data": {"key": 1}});
+        let new = json!({"data": [1, 2, 3]});
+        let diffs = compute_diff(&old, &new, "");
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].path, "data");
+        assert_eq!(diffs[0].old_value, Some(json!({"key": 1})));
+        assert_eq!(diffs[0].new_value, Some(json!([1, 2, 3])));
+    }
+
+    // 11. Empty path — top-level keys have no prefix (keys directly, no dot prefix)
+    #[test]
+    fn empty_path_top_level_keys() {
+        let old = json!({"hp": 100});
+        let new = json!({"hp": 50});
+        let diffs = compute_diff(&old, &new, "");
+        assert_eq!(diffs.len(), 1);
+        // Path should be just "hp", not ".hp"
+        assert_eq!(diffs[0].path, "hp");
+    }
+
+    // 12. Deeply nested — path like "a.b.c[0].d"
+    #[test]
+    fn deeply_nested_path() {
+        let old = json!({"a": {"b": {"c": [{"d": "old"}]}}});
+        let new = json!({"a": {"b": {"c": [{"d": "new"}]}}});
+        let diffs = compute_diff(&old, &new, "");
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].path, "a.b.c[0].d");
+        assert_eq!(diffs[0].old_value, Some(json!("old")));
+        assert_eq!(diffs[0].new_value, Some(json!("new")));
+    }
+
+    // Bonus: identical scalars produce no diffs (guard against false positives)
+    #[test]
+    fn identical_scalars_no_diff() {
+        let v = json!(42);
+        let diffs = compute_diff(&v, &v, "num");
+        assert!(diffs.is_empty());
+    }
+
+    // Bonus: identical arrays produce no diffs
+    #[test]
+    fn identical_arrays_no_diff() {
+        let v = json!([1, 2, 3]);
+        let diffs = compute_diff(&v, &v, "list");
+        assert!(diffs.is_empty());
+    }
 }

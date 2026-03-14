@@ -2,8 +2,8 @@ pub mod crypto;
 pub mod names;
 
 use crate::engines::types::*;
+use crate::engines::utils::has_extension;
 use crate::engines::EnginePlugin;
-use chrono::Local;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -160,15 +160,14 @@ impl EnginePlugin for PgmmvPlugin {
         for entry in entries {
             let entry = entry.map_err(|e| format!("Failed to read entry: {e}"))?;
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("json")
-                || path.extension().is_none()
+            if has_extension(&path, "json") || path.extension().is_none()
             {
                 let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
                 let meta = entry.metadata().map_err(|e| format!("Metadata error: {e}"))?;
                 let modified = meta
                     .modified()
                     .ok()
-                    .map(|t| chrono::DateTime::<Local>::from(t).to_rfc3339())
+                    .map(crate::engines::utils::format_modified_time)
                     .unwrap_or_default();
 
                 saves.push(SaveFile {

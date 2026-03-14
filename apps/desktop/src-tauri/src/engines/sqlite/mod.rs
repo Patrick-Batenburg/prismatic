@@ -147,10 +147,7 @@ impl EnginePlugin for SqlitePlugin {
                     modified: meta
                         .as_ref()
                         .and_then(|m| m.modified().ok())
-                        .map(|t| {
-                            let dt: chrono::DateTime<chrono::Local> = t.into();
-                            dt.format("%Y-%m-%d %H:%M:%S").to_string()
-                        })
+                        .map(crate::engines::utils::format_modified_time)
                         .unwrap_or_default(),
                     size: meta.map(|m| m.len()).unwrap_or(0),
                 });

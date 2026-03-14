@@ -17,16 +17,19 @@
 </script>
 
 <div
-  class="settings-overlay"
-  role="dialog"
+  class="modal-overlay settings-overlay"
+  role="button"
+  aria-label="Close dialog"
   tabindex="-1"
   onclick={onclose}
   onkeydown={(e) => e.key === "Escape" && onclose()}
 >
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div
     class="settings-modal"
-    role="document"
+    role="dialog"
+    tabindex="-1"
+    aria-modal="true"
+    aria-label="Settings"
     onclick={(e) => e.stopPropagation()}
     onkeydown={(e) => e.stopPropagation()}
   >
@@ -63,13 +66,6 @@
 
 <style>
   .settings-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
     animation: fadeIn 0.15s ease;
   }
 

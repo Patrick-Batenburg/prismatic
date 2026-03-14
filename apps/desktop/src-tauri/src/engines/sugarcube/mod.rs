@@ -1,4 +1,5 @@
 use crate::engines::types::*;
+use crate::engines::utils::has_extension;
 use crate::engines::EnginePlugin;
 use std::path::Path;
 
@@ -24,7 +25,7 @@ impl EnginePlugin for SugarCubePlugin {
         if let Ok(entries) = std::fs::read_dir(game_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().map(|e| e == "save").unwrap_or(false)
+                if has_extension(&path, "save")
                     && is_sugarcube_save(&path)
                 {
                     return true;
@@ -41,7 +42,7 @@ impl EnginePlugin for SugarCubePlugin {
         let mut saves = Vec::new();
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().map(|e| e == "save").unwrap_or(false) {
+            if has_extension(&path, "save") {
                 let meta = std::fs::metadata(&path).ok();
                 saves.push(SaveFile {
                     path: path.to_string_lossy().to_string(),
@@ -52,10 +53,7 @@ impl EnginePlugin for SugarCubePlugin {
                     modified: meta
                         .as_ref()
                         .and_then(|m| m.modified().ok())
-                        .map(|t| {
-                            let dt: chrono::DateTime<chrono::Local> = t.into();
-                            dt.format("%Y-%m-%d %H:%M:%S").to_string()
-                        })
+                        .map(crate::engines::utils::format_modified_time)
                         .unwrap_or_default(),
                     size: meta.map(|m| m.len()).unwrap_or(0),
                 });
