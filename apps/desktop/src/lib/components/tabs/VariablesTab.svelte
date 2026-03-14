@@ -100,7 +100,13 @@
 </script>
 
 <div class="var-controls">
-  <input type="text" placeholder="Search variables..." bind:value={search} class="search-input" />
+  <input
+    type="text"
+    placeholder="Search variables..."
+    bind:value={search}
+    class="search-input"
+    aria-label="Search variables"
+  />
 
   {#if groups.length > 0}
     <select bind:value={filterGroup}>
@@ -172,7 +178,7 @@
   }
 
   .search-input {
-    width: 240px;
+    width: var(--search-input-width);
   }
 
   .toggle-label {
@@ -195,16 +201,6 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
-  }
-
-  .table-header {
-    display: flex;
-    padding: 8px 12px;
-    background: var(--bg-tertiary);
-    font-size: 11px;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    letter-spacing: 0.5px;
   }
 
   .table-row {

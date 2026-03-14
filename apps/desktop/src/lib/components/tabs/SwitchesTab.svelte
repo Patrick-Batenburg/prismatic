@@ -73,7 +73,13 @@
 </script>
 
 <div class="sw-controls">
-  <input type="text" placeholder="Search switches..." bind:value={search} class="search-input" />
+  <input
+    type="text"
+    placeholder="Search switches..."
+    bind:value={search}
+    class="search-input"
+    aria-label="Search switches"
+  />
 
   <div class="filter-tabs">
     <button class:active={filterState === "all"} onclick={() => (filterState = "all")}>All</button>
@@ -135,7 +141,7 @@
   }
 
   .search-input {
-    width: 240px;
+    width: var(--search-input-width);
   }
 
   .filter-tabs {
@@ -164,15 +170,6 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
-  }
-
-  .table-header {
-    display: flex;
-    padding: 8px 12px;
-    background: var(--bg-tertiary);
-    font-size: 11px;
-    text-transform: uppercase;
-    color: var(--text-muted);
   }
 
   .table-row {

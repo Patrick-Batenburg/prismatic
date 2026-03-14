@@ -1,22 +1,5 @@
 use std::path::PathBuf;
 
-/// Returns the user's home directory.
-pub fn home_dir() -> Option<PathBuf> {
-    dirs::home_dir()
-}
-
-/// Returns the AppData/Roaming equivalent.
-/// Windows: APPDATA, Linux: ~/.config
-pub fn appdata_dir() -> Option<PathBuf> {
-    dirs::config_dir()
-}
-
-/// Returns the AppData/Local equivalent.
-/// Windows: LOCALAPPDATA, Linux: ~/.local/share
-pub fn local_appdata_dir() -> Option<PathBuf> {
-    dirs::data_local_dir()
-}
-
 /// Expand Windows-style `%VAR%` placeholders in a path string.
 ///
 /// On Windows: resolves APPDATA, LOCALAPPDATA, USERPROFILE from the environment.
@@ -102,8 +85,4 @@ mod tests {
         }
     }
 
-    #[test]
-    fn home_dir_returns_some() {
-        assert!(home_dir().is_some());
-    }
 }

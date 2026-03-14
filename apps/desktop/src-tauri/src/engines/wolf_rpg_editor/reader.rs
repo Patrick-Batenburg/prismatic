@@ -921,13 +921,13 @@ mod tests {
 
         let mut w = FileWalker::new(&buf);
 
-        // Skip 20-byte header
-        w.skip(20).unwrap();
+        // Skip file header
+        w.skip(crate::engines::wolf_rpg_editor::HEADER_SIZE).unwrap();
         println!("After header: pos=0x{:X}", w.pos());
 
-        // Marker byte 0x19
+        // Marker byte
         let marker = w.read_u8().unwrap();
-        assert_eq!(marker, 0x19, "Expected 0x19 marker, got 0x{:02X}", marker);
+        assert_eq!(marker, crate::engines::wolf_rpg_editor::SAVE_MARKER, "Expected 0x{:02X} marker, got 0x{:02X}", crate::engines::wolf_rpg_editor::SAVE_MARKER, marker);
         println!("After marker: pos=0x{:X}", w.pos());
 
         // Game name: MemData<WORD>

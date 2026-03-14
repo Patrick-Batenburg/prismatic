@@ -1,6 +1,7 @@
 pub mod amf3;
 
 use crate::engines::types::*;
+use crate::engines::utils::has_extension;
 use crate::engines::EnginePlugin;
 use std::path::Path;
 
@@ -43,11 +44,7 @@ impl EnginePlugin for FlashSolPlugin {
         let mut saves = Vec::new();
         for entry in entries.flatten() {
             let path = entry.path();
-            if path
-                .extension()
-                .map(|e| e == "sol")
-                .unwrap_or(false)
-            {
+            if has_extension(&path, "sol") {
                 let meta = std::fs::metadata(&path).ok();
                 saves.push(SaveFile {
                     path: path.to_string_lossy().to_string(),
@@ -58,10 +55,7 @@ impl EnginePlugin for FlashSolPlugin {
                     modified: meta
                         .as_ref()
                         .and_then(|m| m.modified().ok())
-                        .map(|t| {
-                            let dt: chrono::DateTime<chrono::Local> = t.into();
-                            dt.format("%Y-%m-%d %H:%M:%S").to_string()
-                        })
+                        .map(crate::engines::utils::format_modified_time)
                         .unwrap_or_default(),
                     size: meta.map(|m| m.len()).unwrap_or(0),
                 });
@@ -141,12 +135,7 @@ impl FlashSolPlugin {
     fn has_swf_files(dir: &Path) -> bool {
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
-                if entry
-                    .path()
-                    .extension()
-                    .map(|e| e == "swf")
-                    .unwrap_or(false)
-                {
+                if has_extension(&entry.path(), "swf") {
                     return true;
                 }
             }
@@ -157,12 +146,7 @@ impl FlashSolPlugin {
     fn has_sol_files(dir: &Path) -> bool {
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
-                if entry
-                    .path()
-                    .extension()
-                    .map(|e| e == "sol")
-                    .unwrap_or(false)
-                {
+                if has_extension(&entry.path(), "sol") {
                     return true;
                 }
             }

@@ -147,6 +147,7 @@
 <div
   class="modal-overlay"
   role="button"
+  aria-label="Close dialog"
   tabindex="-1"
   onclick={oncancel}
   onkeydown={(e) => {
@@ -156,6 +157,8 @@
   <div
     class="modal"
     role="dialog"
+    aria-modal="true"
+    aria-label="Save folder picker"
     tabindex="-1"
     onclick={(e) => e.stopPropagation()}
     onkeydown={(e) => e.stopPropagation()}
@@ -255,16 +258,6 @@
 </div>
 
 <style>
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-  }
-
   .modal {
     background: var(--bg-card);
     border: 1px solid var(--border);

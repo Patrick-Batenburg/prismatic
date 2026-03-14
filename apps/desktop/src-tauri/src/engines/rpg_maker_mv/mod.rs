@@ -6,12 +6,24 @@ use chrono::Local;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+const DATA_KEY: &str = "_data";
+const ARRAY_WRAPPER: &str = "@a";
+const PARTY_KEY: &str = "party";
+const ITEMS_KEY: &str = "_items";
+const WEAPONS_KEY: &str = "_weapons";
+const ARMORS_KEY: &str = "_armors";
+const WEAPON_CLASS: &str = "weapon";
+const ARMOR_CLASS: &str = "armor";
+const CONFIG_SAVE: &str = "config.rpgsave";
+const GLOBAL_SAVE: &str = "global.rpgsave";
+const EQUIP_SLOT_NAMES: &[&str] = &["Weapon", "Shield", "Head", "Body", "Accessory"];
+
 pub struct RpgMakerMvPlugin;
 
 /// Unwrap RPG Maker MV's serialized array format.
 /// Arrays may be plain JSON arrays OR wrapped as `{"@c": N, "@a": [...]}`.
 fn unwrap_array(val: &serde_json::Value) -> Option<&Vec<serde_json::Value>> {
-    val.as_array().or_else(|| val.get("@a").and_then(|a| a.as_array()))
+    val.as_array().or_else(|| val.get(ARRAY_WRAPPER).and_then(|a| a.as_array()))
 }
 
 /// Mutable version of unwrap_array.
@@ -19,7 +31,7 @@ fn unwrap_array_mut(val: &mut serde_json::Value) -> Option<&mut Vec<serde_json::
     if val.is_array() {
         val.as_array_mut()
     } else {
-        val.get_mut("@a").and_then(|a| a.as_array_mut())
+        val.get_mut(ARRAY_WRAPPER).and_then(|a| a.as_array_mut())
     }
 }
 
@@ -77,7 +89,7 @@ impl RpgMakerMvPlugin {
     }
 
     fn extract_party(raw: &serde_json::Value, names: &NameMap) -> Option<Vec<Character>> {
-        let actors = unwrap_array(raw.get("actors")?.get("_data")?)?;
+        let actors = unwrap_array(raw.get("actors")?.get(DATA_KEY)?)?;
         let mut characters = Vec::new();
 
         for actor_val in actors.iter() {
@@ -142,10 +154,9 @@ impl RpgMakerMvPlugin {
 
             // Equipment
             let mut equipment = Vec::new();
-            let slot_names = ["Weapon", "Shield", "Head", "Body", "Accessory"];
             if let Some(equips) = actor_val.get("_equips").and_then(|v| unwrap_array(v)) {
                 for (i, equip) in equips.iter().enumerate() {
-                    let slot_name = slot_names.get(i).unwrap_or(&"Slot").to_string();
+                    let slot_name = EQUIP_SLOT_NAMES.get(i).unwrap_or(&"Slot").to_string();
                     let item_id = equip.get("_itemId").and_then(|v| v.as_u64()).map(|v| v as u32);
                     let data_class = equip.get("_dataClass").and_then(|v| v.as_str()).unwrap_or("");
 
@@ -154,8 +165,8 @@ impl RpgMakerMvPlugin {
                             return None;
                         }
                         match data_class {
-                            "weapon" => names.weapons.get(&id),
-                            "armor" => names.armors.get(&id),
+                            WEAPON_CLASS => names.weapons.get(&id),
+                            ARMOR_CLASS => names.armors.get(&id),
                             _ => None,
                         }
                         .cloned()
@@ -163,7 +174,7 @@ impl RpgMakerMvPlugin {
 
                     // Default data_class based on slot if empty
                     let data_class_str = if data_class.is_empty() {
-                        if i == 0 { "weapon" } else { "armor" }
+                        if i == 0 { WEAPON_CLASS } else { ARMOR_CLASS }
                     } else {
                         data_class
                     };
@@ -220,7 +231,7 @@ impl RpgMakerMvPlugin {
     }
 
     fn extract_inventory(raw: &serde_json::Value, names: &NameMap) -> Option<Inventory> {
-        let party = raw.get("party")?;
+        let party = raw.get(PARTY_KEY)?;
 
         let extract_items = |key: &str, name_map: &std::collections::HashMap<u32, String>| -> Vec<InventoryItem> {
             party
@@ -250,9 +261,9 @@ impl RpgMakerMvPlugin {
                 .unwrap_or_default()
         };
 
-        let items = extract_items("_items", &names.items);
-        let weapons = extract_items("_weapons", &names.weapons);
-        let armors = extract_items("_armors", &names.armors);
+        let items = extract_items(ITEMS_KEY, &names.items);
+        let weapons = extract_items(WEAPONS_KEY, &names.weapons);
+        let armors = extract_items(ARMORS_KEY, &names.armors);
 
         if items.is_empty() && weapons.is_empty() && armors.is_empty() {
             None
@@ -266,7 +277,7 @@ impl RpgMakerMvPlugin {
     }
 
     fn extract_currency(raw: &serde_json::Value) -> Option<CurrencyInfo> {
-        let gold = raw.get("party")?.get("_gold")?.as_i64()?;
+        let gold = raw.get(PARTY_KEY)?.get("_gold")?.as_i64()?;
         Some(CurrencyInfo {
             label: "Gold".into(),
             amount: gold,
@@ -274,7 +285,7 @@ impl RpgMakerMvPlugin {
     }
 
     fn extract_variables(raw: &serde_json::Value, names: &NameMap) -> Option<Vec<Variable>> {
-        let data = unwrap_array(raw.get("variables")?.get("_data")?)?;
+        let data = unwrap_array(raw.get("variables")?.get(DATA_KEY)?)?;
         let mut vars = Vec::new();
 
         for (i, val) in data.iter().enumerate() {
@@ -303,7 +314,7 @@ impl RpgMakerMvPlugin {
     }
 
     fn extract_switches(raw: &serde_json::Value, names: &NameMap) -> Option<Vec<Switch>> {
-        let data = unwrap_array(raw.get("switches")?.get("_data")?)?;
+        let data = unwrap_array(raw.get("switches")?.get(DATA_KEY)?)?;
         let mut switches = Vec::new();
 
         for (i, val) in data.iter().enumerate() {
@@ -333,7 +344,7 @@ impl RpgMakerMvPlugin {
     fn apply_edits(raw: &mut serde_json::Value, data: &SaveData) {
         // Apply currency
         if let Some(ref currency) = data.currency {
-            if let Some(party) = raw.get_mut("party") {
+            if let Some(party) = raw.get_mut(PARTY_KEY) {
                 party["_gold"] = serde_json::json!(currency.amount);
             }
         }
@@ -342,7 +353,7 @@ impl RpgMakerMvPlugin {
         if let Some(ref variables) = data.variables {
             if let Some(var_data) = raw
                 .get_mut("variables")
-                .and_then(|v| v.get_mut("_data"))
+                .and_then(|v| v.get_mut(DATA_KEY))
                 .and_then(|v| unwrap_array_mut(v))
             {
                 for var in variables {
@@ -357,7 +368,7 @@ impl RpgMakerMvPlugin {
         if let Some(ref switches) = data.switches {
             if let Some(sw_data) = raw
                 .get_mut("switches")
-                .and_then(|v| v.get_mut("_data"))
+                .and_then(|v| v.get_mut(DATA_KEY))
                 .and_then(|v| unwrap_array_mut(v))
             {
                 for sw in switches {
@@ -370,7 +381,7 @@ impl RpgMakerMvPlugin {
 
         // Apply inventory
         if let Some(ref inventory) = data.inventory {
-            if let Some(party) = raw.get_mut("party") {
+            if let Some(party) = raw.get_mut(PARTY_KEY) {
                 let apply_inv = |key: &str, items: &[InventoryItem], party: &mut serde_json::Value| {
                     let mut obj = serde_json::Map::new();
                     for item in items {
@@ -380,9 +391,9 @@ impl RpgMakerMvPlugin {
                     }
                     party[key] = serde_json::Value::Object(obj);
                 };
-                apply_inv("_items", &inventory.items, party);
-                apply_inv("_weapons", &inventory.weapons, party);
-                apply_inv("_armors", &inventory.armors, party);
+                apply_inv(ITEMS_KEY, &inventory.items, party);
+                apply_inv(WEAPONS_KEY, &inventory.weapons, party);
+                apply_inv(ARMORS_KEY, &inventory.armors, party);
             }
         }
 
@@ -390,7 +401,7 @@ impl RpgMakerMvPlugin {
         if let Some(ref characters) = data.party {
             if let Some(actors_data) = raw
                 .get_mut("actors")
-                .and_then(|v| v.get_mut("_data"))
+                .and_then(|v| v.get_mut(DATA_KEY))
                 .and_then(|v| unwrap_array_mut(v))
             {
                 for character in characters {
@@ -507,7 +518,7 @@ impl EnginePlugin for RpgMakerMvPlugin {
 
             if name.ends_with(".rpgsave") || name.ends_with(".rmmzsave") {
                 // Skip config saves
-                if name == "config.rpgsave" || name == "global.rpgsave" {
+                if name == CONFIG_SAVE || name == GLOBAL_SAVE {
                     continue;
                 }
 
@@ -515,7 +526,7 @@ impl EnginePlugin for RpgMakerMvPlugin {
                 let modified = meta
                     .modified()
                     .ok()
-                    .map(|t| chrono::DateTime::<Local>::from(t).to_rfc3339())
+                    .map(crate::engines::utils::format_modified_time)
                     .unwrap_or_default();
 
                 saves.push(SaveFile {

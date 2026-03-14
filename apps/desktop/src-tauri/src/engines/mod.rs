@@ -9,6 +9,7 @@ pub mod unreal_engine;
 pub mod sqlite;
 pub mod unity;
 pub mod wolf_rpg_editor;
+pub mod utils;
 
 use std::path::Path;
 use std::sync::Arc;

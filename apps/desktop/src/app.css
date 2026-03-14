@@ -37,6 +37,9 @@
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.4);
 
+  --search-input-width: 240px;
+  --search-input-width-lg: 300px;
+
   --radius: 8px;
   --radius-sm: 4px;
   --radius-lg: 12px;
@@ -158,6 +161,26 @@ button:active {
 .modified-indicator {
   border-left: 3px solid var(--modified) !important;
   background: var(--modified-bg) !important;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.table-header {
+  display: flex;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
 }
 
 .spectral-divider {

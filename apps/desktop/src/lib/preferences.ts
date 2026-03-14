@@ -52,6 +52,10 @@ const DEFAULTS: Preferences = {
 
 const VALID_PAGE_SIZES = [25, 50, 100, 200];
 const VALID_DEBOUNCES = [200, 400, 600, 800];
+const VALID_NOTIFICATION_DURATIONS = [2, 4, 6, 8];
+const VALID_STATUS_FLASH_DURATIONS = [3, 5, 8, 10];
+const MIN_UNDO_DEPTH = 10;
+const MAX_UNDO_DEPTH = 1000;
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 function validate(raw: Record<string, unknown>): Preferences {
@@ -64,10 +68,14 @@ function validate(raw: Record<string, unknown>): Preferences {
     updateModeStr === "auto" || updateModeStr === "notify" || updateModeStr === "off"
       ? updateModeStr
       : DEFAULTS.updateMode;
-  const notificationDuration = [2, 4, 6, 8].includes(Number(merged.notificationDuration))
+  const notificationDuration = VALID_NOTIFICATION_DURATIONS.includes(
+    Number(merged.notificationDuration),
+  )
     ? Number(merged.notificationDuration)
     : DEFAULTS.notificationDuration;
-  const statusFlashDuration = [3, 5, 8, 10].includes(Number(merged.statusFlashDuration))
+  const statusFlashDuration = VALID_STATUS_FLASH_DURATIONS.includes(
+    Number(merged.statusFlashDuration),
+  )
     ? Number(merged.statusFlashDuration)
     : DEFAULTS.statusFlashDuration;
   const tablePageSize = VALID_PAGE_SIZES.includes(Number(merged.tablePageSize))
@@ -86,7 +94,7 @@ function validate(raw: Record<string, unknown>): Preferences {
   // Editor
   const depthNum = Number(merged.undoHistoryDepth);
   const undoHistoryDepth =
-    isNaN(depthNum) || depthNum < 10 || depthNum > 1000
+    isNaN(depthNum) || depthNum < MIN_UNDO_DEPTH || depthNum > MAX_UNDO_DEPTH
       ? DEFAULTS.undoHistoryDepth
       : Math.round(depthNum);
   const searchDebounce = VALID_DEBOUNCES.includes(Number(merged.searchDebounce))
