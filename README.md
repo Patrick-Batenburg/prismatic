@@ -1,6 +1,22 @@
-# Prismatic
+<p align="center">
+  <img src="apps/desktop/src-tauri/icons/icon.png" alt="Prismatic" width="128" height="128">
+</p>
 
-A cross-platform game save editor with support for 10 game engines. Edit party stats, inventory, variables, switches, and raw save data through a unified interface.
+<h1 align="center">Prismatic</h1>
+
+<p align="center">
+  A cross-platform game save editor.<br>
+  Edit party stats, inventory, variables, switches, and raw save data through a unified interface.
+</p>
+
+<p align="center">
+  <a href="https://github.com/Patrick-Batenburg/prismatic/actions/workflows/ci.yml"><img src="https://github.com/Patrick-Batenburg/prismatic/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Patrick-Batenburg/prismatic/actions/workflows/build.yml"><img src="https://github.com/Patrick-Batenburg/prismatic/actions/workflows/build.yml/badge.svg" alt="Build"></a>
+  <a href="https://github.com/Patrick-Batenburg/prismatic/releases/latest"><img src="https://img.shields.io/github/v/release/Patrick-Batenburg/prismatic?label=release" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Patrick-Batenburg/prismatic" alt="License"></a>
+</p>
+
+---
 
 ## Supported Engines
 
