@@ -13,7 +13,7 @@ const SAVE_EXTENSIONS: &[&str] = &["db", "sqlite", "sqlite3"];
 pub struct TableMeta {
     pub name: String,
     pub columns: Vec<ColumnMeta>,
-    pub row_count: u64,
+    pub row_count: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,7 +83,7 @@ impl SqlitePlugin {
         for name in table_names {
             let columns = Self::get_columns(conn, &name)?;
 
-            let row_count: u64 = conn
+            let row_count: i64 = conn
                 .query_row(
                     &format!("SELECT COUNT(*) FROM \"{}\"", name),
                     [],

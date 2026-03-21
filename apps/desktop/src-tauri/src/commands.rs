@@ -410,7 +410,7 @@ pub struct TableRow {
 pub struct TableQueryResult {
     pub columns: Vec<String>,
     pub rows: Vec<TableRow>,
-    pub total_rows: usize,
+    pub total_rows: i64,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -466,7 +466,7 @@ pub async fn query_table(
     }
 
     // Count total rows
-    let total_rows: usize = conn
+    let total_rows: i64 = conn
         .query_row(
             &format!("SELECT COUNT(*) FROM \"{}\"", table_name),
             [],
