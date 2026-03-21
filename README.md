@@ -5,7 +5,7 @@
 <h1 align="center">Prismatic</h1>
 
 <p align="center">
-  A cross-platform game save editor for 10+ engines.<br>
+  A cross-platform game save editor.<br>
   Edit party stats, inventory, variables, switches, and raw save data through a unified interface.
 </p>
 

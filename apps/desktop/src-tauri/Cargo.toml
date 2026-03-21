@@ -1,7 +1,7 @@
 [package]
 name = "prismatic"
 version = "1.0.0"
-description = "A cross-platform game save editor for 10+ engines"
+description = "A cross-platform game save editor"
 authors = ["you"]
 edition = "2021"
 
