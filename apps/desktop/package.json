@@ -29,7 +29,7 @@
     "@prismatic/eslint-config": "workspace:*",
     "@prismatic/prettier-config": "workspace:*",
     "@sveltejs/adapter-static": "^3.0.6",
-    "@sveltejs/kit": "^2.56.1",
+    "@sveltejs/kit": "^2.57.1",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@tauri-apps/cli": "^2",
     "eslint": "^10",
