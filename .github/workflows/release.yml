@@ -27,7 +27,7 @@ jobs:
     name: Release (${{ matrix.label }})
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-linux
 
