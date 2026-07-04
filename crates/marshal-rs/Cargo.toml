@@ -75,7 +75,7 @@ version = "2.12.1"
 features = ["serde"]
 
 [dependencies.num-bigint]
-version = "0.4.6"
+version = "0.5.0"
 
 [dependencies.serde]
 version = "1.0.228"
